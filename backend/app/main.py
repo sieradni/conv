@@ -57,6 +57,7 @@ class DirectTalkPayload(BaseModel):
 
 class BranchPayload(BaseModel):
     session_id: str
+    step_number: Optional[int] = None
 
 
 class SelfDevProposePayload(BaseModel):
@@ -168,8 +169,8 @@ async def delete_session(session_id: str):
 
 @app.post("/api/task/start")
 async def start_task(payload: TaskPayload, background_tasks: BackgroundTasks):
-    if payload.max_steps < 1 or payload.max_steps > 100:
-        raise HTTPException(status_code=400, detail="max_steps must be between 1 and 100")
+    if payload.max_steps < 1 or payload.max_steps > 99999:
+        raise HTTPException(status_code=400, detail="max_steps must be between 1 and 99999")
     if payload.approval_mode not in ("AUTO_APPROVE", "CHECK_WITH_OVERSEER", "WAIT_FOR_USER"):
         raise HTTPException(status_code=400, detail="Invalid approval_mode")
 
@@ -281,23 +282,35 @@ async def delete_history_step(step_number: int, session_id: str = Query("default
 
 @app.post("/api/task/branch")
 async def branch_task(payload: BranchPayload):
-    """Branch from the current state: freeze history, reset step counter."""
+    """Branch from a specific step: truncate history after step_number."""
     session = registry.get(payload.session_id)
     if not session or not session.orchestrator:
         raise HTTPException(status_code=404, detail="No active session")
     state = session.orchestrator.state
-    # Create a branch point: archive current history and reset
-    state.system_metrics["branch_point"] = {
-        "step": state.current_step,
-        "history_length": len(state.history),
-    }
-    state.current_step = 1
-    # Remove the finish if it exists so agent continues
-    state.history = [s for s in state.history if s.tool_name != "finish_task"]
+
+    branch_step = payload.step_number
+    if branch_step is not None:
+        # Truncate history: keep only steps up to and including branch_step
+        state.history = [s for s in state.history if s.step_number <= branch_step]
+        state.current_step = branch_step + 1
+        state.system_metrics["branch_point"] = {
+            "step": branch_step,
+            "history_length": len(state.history),
+        }
+    else:
+        # Legacy: just reset
+        state.system_metrics["branch_point"] = {
+            "step": state.current_step,
+            "history_length": len(state.history),
+        }
+        state.current_step = 1
+        state.history = [s for s in state.history if s.tool_name != "finish_task"]
+
     state.status = "RUNNING"
     await manager.broadcast({
         "type": "status_update", "session_id": payload.session_id,
-        "status": "BRANCHED", "message": f"Branched at step {state.current_step}"
+        "status": "BRANCHED", "message": f"Branched at step {branch_step or state.current_step}",
+        "branch_step": branch_step,
     })
     return {"status": "branched", "session_id": payload.session_id, "branch_point": state.system_metrics["branch_point"]}
 
@@ -488,6 +501,46 @@ async def update_notes(payload: DirectTalkPayload):
     """Update the user's persistent notes."""
     NOTES_PATH.write_text(payload.message, encoding="utf-8")
     return {"status": "updated"}
+
+
+# ── Todo List (from agent's working memory) ──────────────────────
+
+MEMORY_PATH = Path(__file__).parent / "working_memory.json"
+
+
+@app.get("/api/todos")
+async def get_todos():
+    """Return the agent's todo_list and completed_tasks from working memory."""
+    default = {"todo_list": [], "completed_tasks": []}
+    if MEMORY_PATH.exists():
+        try:
+            data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return {
+                    "todo_list": data.get("todo_list", []),
+                    "completed_tasks": data.get("completed_tasks", []),
+                    "project_overview": data.get("project_overview", ""),
+                }
+        except (json.JSONDecodeError, Exception):
+            pass
+    return default
+
+
+@app.put("/api/todos")
+async def update_todos(payload: DirectTalkPayload):
+    """Update the agent's working memory todo list."""
+    try:
+        if MEMORY_PATH.exists():
+            data = json.loads(MEMORY_PATH.read_text(encoding="utf-8"))
+        else:
+            data = {"todo_list": [], "completed_tasks": [], "project_overview": "", "facts_discovered": {}, "active_decisions": []}
+        updated = json.loads(payload.message)
+        for k, v in updated.items():
+            data[k] = v
+        MEMORY_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return {"status": "updated"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── Diagnostics Metrics ───────────────────────────────────────────

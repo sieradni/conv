@@ -63,6 +63,7 @@ class AgentOrchestrator:
         # UI and HITL Hooks
         self.ui_manager = None  # Will be set by FastAPI
         self.user_queue = None   # Will be set by FastAPI
+        self.pending_talk = []   # Talk messages waiting for LLM to process
         
         # Get active model
         self.model_name = None
@@ -143,7 +144,9 @@ class AgentOrchestrator:
                     try:
                         msg = session.direct_talk_queue.get_nowait()
                         print(f"\n[*] Direct talk received: {msg[:80]}")
-                        # Inject as a one-off step
+                        # Queue talk to be injected into the next LLM prompt
+                        self.pending_talk.append(msg)
+                        # Also log as a step for the UI
                         step_log = StepLog(
                             step_number=self.state.current_step,
                             thought="[Direct user instruction]",
@@ -704,7 +707,6 @@ HIERARCHICAL MEMORY (navigate with navigate_up/down/read_detail/create_memory):
         recent_steps = self.state.history[-5:] if self.state.history else []
         
         if recent_steps:
-            # Build context from last 2 steps
             context_lines = ["Recent steps:"]
             for step in recent_steps:
                 context_lines.append(f"Step {step.step_number}:")
@@ -713,6 +715,15 @@ HIERARCHICAL MEMORY (navigate with navigate_up/down/read_detail/create_memory):
             
             context = "\n".join(context_lines)
             messages.append({"role": "assistant", "content": context})
+        
+        # Inject pending direct talk messages as explicit user prompts
+        if self.pending_talk:
+            for talk_msg in self.pending_talk:
+                messages.append({
+                    "role": "user",
+                    "content": f"[USER MESSAGE] {talk_msg}\n\nThe user has sent you a message. Please respond to it directly. If they are asking a question, answer it. If they are giving instructions, follow them. Output only valid JSON with your next action."
+                })
+            self.pending_talk = []
         
         # Add continuation prompt
         messages.append({

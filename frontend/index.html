@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0b0f1a;--surface:#111827;--border:rgba(255,255,255,0.06);--text:#e2e8f0;--muted:#64748b;--accent:#6366f1;--accent-dim:rgba(99,102,241,0.15)}
+:root{--bg:#0b0f1a;--surface:#111827;--border:rgba(255,255,255,0.06);--text:#e2e8f0;--muted:#94a3b8;--accent:#818cf8;--accent-dim:rgba(129,140,248,0.15)}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden}
 .mono{font-family:'JetBrains Mono',monospace}
 .glass{background:var(--surface);border:1px solid var(--border);backdrop-filter:blur(8px)}
@@ -20,10 +20,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .pulse-dot{width:6px;height:6px;border-radius:999px;animation:pulse-dot 1.5s ease-in-out infinite}
 @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .slide-up{animation:slideUp .2s ease-out}
-.collapse-content{max-height:200px;overflow:hidden;transition:max-height .2s ease}
-.collapse-content.expanded{max-height:none}
-.collapse-content.overseer-content{max-height:100px}
-.collapse-content.overseer-content.expanded{max-height:none}
 </style>
 </head>
 <body>
@@ -54,41 +50,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   </header>
 
   <!-- Console View -->
-  <div id="panel-console" class="flex-1 flex flex-col min-h-0">
+  <div id="panel-console" class="flex-1 flex flex-col min-h-0 relative">
 
-    <!-- Conversation Area -->
-    <div id="conversation" class="flex-1 scroll px-3 py-2 space-y-2">
-      <div class="text-slate-600 italic text-[11px] text-center py-8">ready. set a goal and launch a task.</div>
-    </div>
-
-    <!-- Input & Controls -->
-    <div class="shrink-0 glass border-t border-white/5 px-3 py-2 space-y-2">
-      <!-- Task input row -->
-      <div class="flex gap-2">
-        <input id="task-goal" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50" placeholder="Task goal: create a hello.py that says hello...">
-        <button id="start-btn" class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 rounded-lg font-semibold text-[11px] tracking-wide transition disabled:opacity-40 whitespace-nowrap">launch</button>
-        <button id="talk-btn" class="px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[10px] font-bold text-indigo-400 transition disabled:opacity-30 whitespace-nowrap" disabled>talk</button>
-      </div>
-      <!-- Control row -->
-      <div class="flex gap-2 items-center flex-wrap">
-        <button id="stop-btn" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
-        <button id="pause-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
-        <div class="flex items-center gap-1 text-[10px] text-slate-600 ml-auto">
-          <label class="hidden sm:inline">mode:</label>
-          <select id="approval-mode" class="bg-black/40 border border-white/5 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none cursor-pointer">
-            <option value="AUTO_APPROVE">auto</option>
-            <option value="CHECK_WITH_OVERSEER">overseer</option>
-            <option value="WAIT_FOR_USER" selected>user</option>
-          </select>
-          <label class="hidden sm:inline ml-1">steps:</label>
-          <input id="max-steps" type="number" value="15" min="1" max="100" class="w-12 bg-black/40 border border-white/5 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none">
-        </div>
-      </div>
-    </div>
-
-    <!-- Approval Banner (overlaid at bottom of console) -->
-    <div id="approval-banner" class="hidden shrink-0 px-3 py-2 bg-gradient-to-t from-black/95 via-black/90 to-transparent">
-      <div class="bg-amber-950/40 border border-amber-600/30 rounded-xl p-3 backdrop-blur slide-up">
+    <!-- Approval Banner (floating at top) -->
+    <div id="approval-banner" class="hidden absolute top-0 inset-x-0 z-20 px-3 pt-2 pb-1 bg-gradient-to-b from-black/90 via-black/80 to-transparent pointer-events-none">
+      <div class="bg-amber-950/40 border border-amber-600/30 rounded-xl p-3 backdrop-blur slide-up pointer-events-auto">
         <div class="flex items-start gap-2">
           <div class="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xs">!</div>
           <div class="flex-1 min-w-0 space-y-1.5">
@@ -100,6 +66,54 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
               <button id="reject-btn" class="px-3 py-1.5 bg-rose-600/60 hover:bg-rose-500 rounded-lg text-[10px] font-semibold transition whitespace-nowrap">skip</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conversation Area -->
+    <div id="conversation" class="flex-1 scroll px-3 py-2 space-y-1.5">
+      <div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. set a goal and launch a task.</div>
+    </div>
+
+    <!-- Generating Indicator -->
+    <div id="generating-indicator" class="hidden shrink-0 px-3 py-1 bg-indigo-500/5 border-t border-indigo-500/10 text-[10px] text-indigo-400 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+      <span id="gen-status">generating...</span>
+      <span id="gen-timing" class="text-slate-600 ml-auto font-mono"></span>
+    </div>
+
+    <!-- Todo List Panel (collapsible, shown when items exist) -->
+    <div id="todo-panel" class="hidden shrink-0 glass border-t border-indigo-500/10 px-3 py-1.5">
+      <div id="current-task-display" class="hidden text-[10px] text-slate-400 mb-1 pb-1 border-b border-white/5 truncate"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">todo</span>
+        <span id="todo-count" class="text-[9px] text-slate-500"></span>
+        <button onclick="toggle('todo-list-body')" class="ml-auto text-[9px] text-slate-600 hover:text-slate-400 transition">toggle</button>
+      </div>
+      <div id="todo-list-body">
+        <ul id="todo-items" class="space-y-0.5 max-h-32 overflow-y-auto"></ul>
+      </div>
+    </div>
+
+    <!-- Input & Controls (always at bottom) -->
+    <div class="shrink-0 glass border-t border-white/5 px-3 py-2 space-y-2">
+      <div class="flex gap-2">
+        <input id="msg-input" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50" placeholder="Task goal or message for agent...">
+        <button id="start-btn" class="px-4 py-2 bg-indigo-600/70 hover:bg-indigo-500/80 rounded-lg font-semibold text-[11px] tracking-wide transition disabled:opacity-40 whitespace-nowrap">launch</button>
+        <button id="respond-btn" class="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-500/40 border border-indigo-500/30 rounded-lg text-[10px] font-bold text-indigo-300 transition whitespace-nowrap" title="Send message and prompt agent to respond">respond</button>
+      </div>
+      <div class="flex gap-2 items-center flex-wrap">
+        <button id="stop-btn" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
+        <button id="pause-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
+        <button id="fresh-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[10px] font-bold text-slate-300 transition">fresh chat</button>
+        <div class="flex items-center gap-1 text-[10px] text-slate-600 ml-auto">
+          <label class="hidden sm:inline">mode:</label>
+          <select id="approval-mode" class="bg-black/40 border border-white/5 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none cursor-pointer">
+            <option value="AUTO_APPROVE">auto</option>
+            <option value="CHECK_WITH_OVERSEER">overseer</option>
+            <option value="WAIT_FOR_USER" selected>user</option>
+          </select>
+
         </div>
       </div>
     </div>
@@ -118,26 +132,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
           <button id="mem-refresh-btn" class="px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[9px] font-bold text-slate-400 transition">refresh</button>
         </div>
       </div>
-      <div class="flex-1 flex flex-col lg:flex-row gap-3 p-3 min-h-0 overflow-hidden">
-        <pre id="memory-graph-full" class="flex-1 scroll glass rounded-lg p-3 mono text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap"></pre>
-        <div class="lg:w-64 flex flex-col gap-3 shrink-0">
-          <div class="glass rounded-lg p-3">
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">neighborhood</h3>
-            <pre id="memory-neighborhood-full" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap"></pre>
-          </div>
-          <div class="glass rounded-lg p-3">
-            <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">tabs</h3>
-            <div class="flex border-b border-white/5">
-              <button id="tab-graph" class="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400">graph</button>
-              <button id="tab-rules" class="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent">rules</button>
-              <button id="tab-neighbors" class="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent">neighbors</button>
-            </div>
-            <div class="mt-2">
-              <pre id="mem-rules" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
-              <pre id="mem-neighbors" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
-            </div>
-          </div>
+      <div class="flex-1 scroll p-3">
+        <div class="flex gap-2 mb-3 flex-wrap">
+          <button id="mtab-graph" class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">graph</button>
+          <button id="mtab-rules" class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 border border-transparent">rules</button>
+          <button id="mtab-neighbors" class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 border border-transparent">neighbors</button>
         </div>
+        <pre id="mem-graph" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap"></pre>
+        <pre id="mem-rules" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
+        <pre id="mem-neighbors" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
       </div>
     </section>
   </div>
@@ -151,13 +154,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
           <h2 class="text-xs font-bold uppercase tracking-wider">user notes</h2>
           <span class="text-[9px] text-slate-600">(agent can read via read_user_notes)</span>
         </div>
-        <div class="flex gap-2">
-          <button id="notes-save-btn" class="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 rounded-lg text-[9px] font-bold text-emerald-400 transition">save</button>
-          <button id="notes-refresh-btn" class="px-3 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[9px] font-bold text-slate-400 transition">reload</button>
-        </div>
+        <span id="notes-status" class="text-[9px] text-slate-600"></span>
       </div>
-      <textarea id="notes-editor" class="flex-1 bg-black/30 text-slate-200 p-4 font-mono text-[12px] leading-relaxed border-0 outline-none resize-none scroll" placeholder="Write your notes here... The agent can read these via read_user_notes."></textarea>
-      <div class="px-4 py-1.5 border-t border-white/5 bg-black/20 text-[9px] text-slate-600 shrink-0">agent tool: <span class="font-mono text-indigo-400">read_user_notes</span></div>
+      <textarea id="notes-editor" class="flex-1 bg-black/30 text-slate-200 p-4 font-mono text-[12px] leading-relaxed border-0 outline-none resize-none scroll" placeholder="Write your notes here... The agent can read these via read_user_notes." oninput="debounceAutoSaveNotes()"></textarea>
+      <div class="px-4 py-1.5 border-t border-white/5 bg-black/20 text-[9px] text-slate-600 shrink-0">agent tool: <span class="font-mono text-indigo-400">read_user_notes</span> &middot; auto-saves on change</div>
     </section>
   </div>
 
@@ -169,7 +169,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
         <h2 class="text-xs font-bold uppercase tracking-wider">settings</h2>
       </div>
       <div class="flex-1 scroll p-4 space-y-5">
-        <!-- Self-Development -->
         <div>
           <h3 class="text-[11px] font-bold text-slate-400 mb-2">Self-Development Pipeline</h3>
           <p class="text-[10px] text-slate-500 mb-2">The agent can safely modify its own codebase through a shadow sandbox. Changes are tested before deployment.</p>
@@ -181,22 +180,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
           </div>
           <pre id="sd-output" class="mt-2 bg-black/40 rounded-lg p-3 text-[10px] text-slate-500 mono leading-relaxed min-h-[40px] overflow-x-auto">No self-dev actions yet.</pre>
         </div>
-        <!-- Session -->
         <div class="border-t border-white/5 pt-4">
           <h3 class="text-[11px] font-bold text-slate-400 mb-2">Session</h3>
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-[10px] text-slate-500">Current:</span>
             <span id="settings-session" class="text-[10px] font-mono text-indigo-400"></span>
             <button id="settings-new-session" class="px-3 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">new session</button>
-          </div>
-        </div>
-        <!-- Status -->
-        <div class="border-t border-white/5 pt-4">
-          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Server Info</h3>
-          <div id="server-info" class="text-[10px] text-slate-500 space-y-1">
-            <div class="flex gap-2"><span class="text-slate-600 w-24">Session:</span><span id="info-session" class="font-mono">--</span></div>
-            <div class="flex gap-2"><span class="text-slate-600 w-24">WebSocket:</span><span id="info-ws">--</span></div>
-            <div class="flex gap-2"><span class="text-slate-600 w-24">Status:</span><span id="info-status">--</span></div>
           </div>
         </div>
       </div>
@@ -213,7 +202,9 @@ const approvalBanner = $('approval-banner');
 let socket = null;
 let sessionId = null;
 let isRunning = false;
-let stepCount = 0;
+let notesTimer = null;
+let currentGoal = '';
+let genStartTime = 0;
 
 // --- View Switching ---
 function switchView(view) {
@@ -230,22 +221,29 @@ function switchView(view) {
   if (view === 'memory') loadMemoryGraph();
 }
 
-// --- Notes ---
+// --- Notes (auto-save) ---
 async function loadNotes() {
   try { const r = await fetch('/api/notes'); const d = await r.json(); $('notes-editor').value = d.content; } catch(_) {}
 }
-async function saveNotes() {
+function debounceAutoSaveNotes() {
+  $('notes-status').textContent = 'unsaved changes...';
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(() => saveNotes(true), 800);
+}
+async function saveNotes(silent) {
   try {
     await fetch('/api/notes', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:$('notes-editor').value, session_id:sessionId}) });
-    addMsg('notes saved', 'emerald-400');
+    if (!silent) addMsg('notes saved', 'emerald-400');
+    $('notes-status').textContent = 'saved';
+    setTimeout(() => { if ($('notes-status').textContent === 'saved') $('notes-status').textContent = ''; }, 2000);
   } catch(_) {}
 }
 
 // --- Memory Graph ---
-async function loadMemoryGraph() {
+async function loadMemoryGraph(tab) {
   try {
     const r = await fetch('/api/memory'); const d = await r.json();
-    $('memory-graph-full').textContent = JSON.stringify(d, null, 2);
+    $('mem-graph').textContent = JSON.stringify(d, null, 2);
     if (d.neighborhood) {
       let txt = '';
       const cur = d.neighborhood.current;
@@ -258,9 +256,36 @@ async function loadMemoryGraph() {
         txt += '\nLINKS:\n';
         d.neighborhood.links.forEach(l => { txt += `  ↔ ${l.title} (${(l.id||'').slice(0,8)})\n`; });
       }
-      $('memory-neighborhood-full').textContent = txt || '[empty]';
     }
+    if (tab) switchMtab(tab);
   } catch(_) {}
+}
+function switchMtab(tab) {
+  ['mem-graph','mem-rules','mem-neighbors'].forEach(id => $(id)?.classList.add('hidden'));
+  $(`mem-${tab}`)?.classList.remove('hidden');
+  ['mtab-graph','mtab-rules','mtab-neighbors'].forEach(id => {
+    const el = $(id); if (!el) return;
+    const act = id === `mtab-${tab}`;
+    el.className = act
+      ? 'px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+      : 'px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 border border-transparent';
+  });
+  if (tab === 'rules') {
+    fetch('/api/state').then(r=>r.json()).then(d => { $('mem-rules').textContent = d.rules||'[no rules]'; }).catch(()=>{});
+  } else if (tab === 'neighbors') {
+    fetch('/api/memory').then(r=>r.json()).then(d => {
+      let txt = '';
+      if (d.neighborhood) {
+        ['current','children','links','root'].forEach(k => {
+          if (k==='current' && d.neighborhood.current) txt += `CURRENT: ${d.neighborhood.current.title}  id: ${d.neighborhood.current.id}\n`;
+          else if (k==='children' && d.neighborhood.children?.length) d.neighborhood.children.forEach(c => { txt += `CHILD: ${c.title}  id: ${c.id}\n`; });
+          else if (k==='links' && d.neighborhood.links?.length) d.neighborhood.links.forEach(l => { txt += `LINK: ${l.title}  id: ${l.id}\n`; });
+          else if (k==='root' && d.root) txt += `ROOT: ${d.root.title}  id: ${d.root.id}\n`;
+        });
+      }
+      $('mem-neighbors').textContent = txt||'[empty]';
+    }).catch(()=>{});
+  }
 }
 
 // --- Session Init ---
@@ -275,7 +300,6 @@ async function initSession() {
   } catch(_) { sessionId = 'default'; }
   $('session-label').textContent = sessionId;
   $('settings-session').textContent = sessionId;
-  $('info-session').textContent = sessionId;
   const url = new URL(location);
   url.searchParams.set('session', sessionId);
   history.replaceState({}, '', url);
@@ -296,7 +320,6 @@ function connectWS() {
 function setConnection(ok) {
   const dot = $('connection-dot');
   const badge = $('connection-badge');
-  $('info-ws').textContent = ok ? 'connected' : 'disconnected';
   if (ok) {
     dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
     badge.className = 'badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
@@ -306,42 +329,71 @@ function setConnection(ok) {
   }
 }
 
+// --- Generating Indicator ---
+function showGenerating(label) {
+  genStartTime = Date.now();
+  $('gen-status').textContent = label || 'generating...';
+  $('generating-indicator').classList.remove('hidden');
+  $('gen-timing').textContent = '';
+  scrollChat();
+}
+function updateGenerating(label) {
+  const elapsed = ((Date.now() - genStartTime) / 1000).toFixed(1);
+  $('gen-status').textContent = label || 'generating...';
+  $('gen-timing').textContent = `${elapsed}s`;
+}
+function hideGenerating(diag) {
+  $('generating-indicator').classList.add('hidden');
+  if (diag) updateDiag(diag);
+}
+
 // --- Message Handling ---
 function handle(msg) {
   if (msg.session_id && msg.session_id !== sessionId) return;
   switch (msg.type) {
     case 'step_update':
+      hideGenerating(msg.diagnostics);
       addStep(msg.step, msg.diagnostics);
+      fetchTodos();
       break;
     case 'step_start':
-      addMsg(`step ${msg.step_number} starting...`, 'indigo-400');
-      if (msg.diagnostics) updateDiag(msg.diagnostics);
+      addMsg(`step ${msg.step_number}`, 'indigo-400');
+      showGenerating(`step ${msg.step_number}...`);
       break;
     case 'status_update':
       setStatus(msg.status === 'RUNNING' ? 'running' : msg.status.toLowerCase());
-      if (msg.goal) addMsg(`task: ${msg.goal}`, 'slate-400');
+      if (msg.goal) { currentGoal = msg.goal; addMsg(`task: ${msg.goal}`, 'slate-400'); updatedTaskDisplay(); }
       isRunning = msg.status === 'RUNNING';
+      if (msg.status !== 'RUNNING') hideGenerating();
+      fetchTodos();
+      if (msg.status === 'BRANCHED' && msg.branch_step) {
+        const allS = conversation.querySelectorAll('[id^="step-"]');
+        allS.forEach(s => { if (parseInt(s.dataset.stepNumber) > msg.branch_step) s.remove(); });
+      }
       break;
     case 'task_complete':
       setStatus(msg.status === 'COMPLETED' ? 'completed' : msg.status.toLowerCase());
       isRunning = false;
+      hideGenerating();
       addMsg(`task ${msg.status.toLowerCase()} (${msg.steps} steps)`, msg.status === 'COMPLETED' ? 'emerald-400' : 'amber-400');
+      fetchTodos();
       break;
     case 'llm_call':
-      addExpandable('llm call...', `Calling model...`, 'sky-400');
+      showGenerating('llm thinking...');
       break;
     case 'llm_response':
-      addExpandable('llm response', msg.diagnostics ? `${msg.diagnostics.generation_time_s?.toFixed(2)||'?'}s | ${msg.diagnostics.tokens_per_second?.toFixed(1)||'?'} t/s` : 'received', 'emerald-500');
-      if (msg.diagnostics) updateDiag(msg.diagnostics);
+      hideGenerating(msg.diagnostics);
       break;
     case 'overseer_review_start':
-      addExpandable('overseer reviewing...', 'Reviewing action...', 'indigo-400');
+      updateGenerating('overseer reviewing...');
       break;
     case 'overseer_review':
+      hideGenerating();
       addOverseerReview(msg);
       break;
     case 'awaiting_user_approval':
     case 'ask_user':
+      hideGenerating();
       showApproval(msg);
       break;
     case 'user_decision':
@@ -350,16 +402,14 @@ function handle(msg) {
       break;
     case 'ping': break;
     case 'error':
+      hideGenerating();
       addMsg(`error: ${msg.message}`, 'rose-400');
       setStatus('error'); isRunning = false;
       break;
   }
 }
 
-function updateDiag(d) {
-  if (!d) return;
-  // Diagnostics shown in step cards, no separate panel needed
-}
+function updateDiag(d) { /* per-step diag shown in step card */ }
 
 function setStatus(s) {
   const badge = $('status-badge');
@@ -376,11 +426,10 @@ function setStatus(s) {
   const label = badge.childNodes.length >= 3 ? badge.childNodes[2] : null;
   if (label) label.textContent = s;
   else badge.innerHTML = `<span class="pulse-dot ${c[2]}"></span> ${s}`;
-  $('info-status').textContent = s;
   $('start-btn').disabled = s === 'running';
-  $('stop-btn').disabled = s !== 'running';
+  $('stop-btn').disabled = s !== 'running' && s !== 'paused';
   $('pause-btn').disabled = s !== 'running';
-  $('talk-btn').disabled = s !== 'running';
+  // talk button always enabled
 }
 
 function addMsg(text, color='slate-400') {
@@ -388,46 +437,91 @@ function addMsg(text, color='slate-400') {
   d.className = `text-${color} text-[11px] slide-up`;
   d.innerHTML = `<span class="text-slate-600 mr-1.5">&#9656;</span>${text}`;
   conversation.appendChild(d);
+  removeWelcome();
   scrollChat();
+}
+
+function removeWelcome() {
+  const w = $('welcome-msg');
+  if (w) w.remove();
 }
 
 function scrollChat() { conversation.scrollTop = conversation.scrollHeight; }
 
-function addExpandable(title, detail, color='slate-400') {
-  const id = 'exp-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
-  const d = document.createElement('div');
-  d.className = `slide-up text-[11px]`;
-  d.innerHTML = `<button onclick="toggleExp('${id}')" class="flex items-center gap-1.5 text-${color} w-full text-left">
-    <span id="${id}-icon" class="text-slate-600 text-[9px] transition-transform">&#9654;</span>
-    <span class="font-medium">${title}</span>
-    <span class="text-slate-600 text-[10px] ml-1">${detail}</span>
-  </button>
-  <div id="${id}" class="hidden pl-4 mt-1 text-slate-500 text-[10px]">${detail}</div>`;
-  conversation.appendChild(d);
-  scrollChat();
+// --- Todo List ---
+function updatedTaskDisplay() {
+  const el = $('current-task-display');
+  if (currentGoal) {
+    el.innerHTML = `<span class="text-slate-500">task:</span> ${escapeHtml(currentGoal)}`;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
 }
 
-function toggleExp(id) {
-  const c = $(id); const icon = $(id+'-icon');
-  if (!c) return;
-  c.classList.toggle('hidden');
-  icon.innerHTML = c.classList.contains('hidden') ? '&#9654;' : '&#9660;';
+async function fetchTodos() {
+  try {
+    const r = await fetch('/api/todos');
+    const d = await r.json();
+    const items = d.todo_list || [];
+    const completed = d.completed_tasks || [];
+    const panel = $('todo-panel');
+    const list = $('todo-items');
+    if (items.length === 0 && completed.length === 0) {
+      panel.classList.add('hidden');
+      return;
+    }
+    panel.classList.remove('hidden');
+    $('todo-count').textContent = `${items.length} pending · ${completed.length} done`;
+    list.innerHTML = '';
+    items.forEach((item, i) => {
+      const li = document.createElement('li');
+      li.className = 'text-[10px] text-slate-300 flex items-start gap-1.5';
+      li.innerHTML = `<span class="text-indigo-400 shrink-0 mt-0.5">&#8226;</span><span>${escapeHtml(typeof item === 'string' ? item : (item.title || item.task || JSON.stringify(item)))}</span>`;
+      list.appendChild(li);
+    });
+    if (completed.length > 0 && items.length > 0) {
+      const sep = document.createElement('li');
+      sep.className = 'text-[9px] text-slate-600 pt-1';
+      sep.textContent = 'completed:';
+      list.appendChild(sep);
+    }
+    completed.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'text-[10px] text-slate-500 flex items-start gap-1.5';
+      li.innerHTML = `<span class="text-emerald-500 shrink-0 mt-0.5">&#10003;</span><span>${escapeHtml(typeof item === 'string' ? item : (item.title || item.task || JSON.stringify(item)))}</span>`;
+      list.appendChild(li);
+    });
+  } catch(_) {}
+}
+
+function toggle(elId) {
+  const el = $(elId);
+  if (!el) return;
+  const icon = $(elId+'-icon');
+  el.classList.toggle('hidden');
+  if (icon) icon.innerHTML = el.classList.contains('hidden') ? '&#9654;' : '&#9660;';
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // --- Add Step (Core) ---
 function addStep(step, diagnostics) {
-  stepCount++;
-  const sn = step.step_number || stepCount;
+  const sn = step.step_number || (conversation.querySelectorAll('[id^="step-"]').length + 1);
   const toolName = step.tool_name || 'unknown';
   const thought = step.thought || '';
   const args = step.tool_args || {};
   const obs = step.observation || '';
 
-  const isError = toolName.includes('error') || toolName.startsWith('[');
+  const isSystem = toolName.startsWith('[');
+  const isError = toolName.includes('error') || isSystem;
   const isFinish = toolName === 'finish_task';
   const toolColor = isError ? 'rose' : isFinish ? 'emerald' : 'indigo';
 
-  const argsStr = Object.keys(args).length ? JSON.stringify(args, null, 2) : '{}';
+  const argsStr = Object.keys(args).length ? JSON.stringify(args, null, 2) : '';
   const diag = diagnostics || {};
   const diagStr = diag.generation_time_s != null
     ? `${diag.generation_time_s.toFixed(2)}s | ${(diag.tokens_per_second||0).toFixed(1)} t/s | ${diag.token_count||0} tok`
@@ -439,6 +533,7 @@ function addStep(step, diagnostics) {
   d.className = `glass rounded-lg p-3 slide-up border-l-2 border-${toolColor}-500/40`;
   d.id = id;
   d.dataset.step = JSON.stringify(step);
+  d.dataset.stepNumber = sn;
 
   // Header
   let html = `<div class="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -447,88 +542,80 @@ function addStep(step, diagnostics) {
     ${diagStr ? `<span class="text-[9px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
   </div>`;
 
-  // Thought (collapsible)
+  // Thought (collapsible, default collapsed)
   if (thought) {
     const tid = id + '-t';
-    html += `<button onclick="toggleExp('${tid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-1">
-      <span id="${tid}-icon" class="text-[9px] transition-transform">&#9654;</span>
+    html += `<button onclick="toggle('${tid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5">
+      <span id="${tid}-icon" class="text-[9px]">&#9654;</span>
       <span class="font-medium">thinking</span>
     </button>
-    <div id="${tid}" class="hidden pl-3 mb-1.5 text-[10px] text-slate-400 italic leading-relaxed">${escapeHtml(thought)}</div>`;
+    <div id="${tid}" class="hidden pl-3 mb-1 text-[10px] text-slate-400 italic leading-relaxed">${escapeHtml(thought)}</div>`;
   }
 
-  // Args (collapsible)
-  if (argsStr !== '{}') {
+  // Args (collapsible, default collapsed)
+  if (argsStr) {
     const aid = id + '-a';
-    html += `<button onclick="toggleExp('${aid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-1">
-      <span id="${aid}-icon" class="text-[9px] transition-transform">&#9654;</span>
+    html += `<button onclick="toggle('${aid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5">
+      <span id="${aid}-icon" class="text-[9px]">&#9654;</span>
       <span class="font-medium">arguments</span>
     </button>
-    <div id="${aid}" class="hidden mb-1.5">
+    <div id="${aid}" class="hidden mb-1">
       <pre class="bg-black/30 border border-white/5 rounded p-1.5 text-[9px] text-slate-500 mono overflow-x-auto">${argsStr}</pre>
     </div>`;
   }
 
-  // Observation (collapsible, default expanded)
+  // Observation/Result (shown expanded by default, collapsible)
   if (obs) {
     const oid = id + '-o';
-    const isLong = obs.length > 300;
-    html += `<button onclick="toggleExp('${oid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-1 mt-1">
-      <span id="${oid}-icon" class="text-[9px]">${isLong ? '&#9654;' : '&#9660;'}</span>
+    html += `<button onclick="toggle('${oid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5 mt-0.5">
+      <span id="${oid}-icon" class="text-[9px]">&#9660;</span>
       <span class="font-medium">result</span>
     </button>
-    <div id="${oid}" class="${isLong ? 'hidden' : ''} mb-1.5">
-      <div class="text-[10px] text-slate-500 pl-1 border-l-2 border-${toolColor}-500/30 py-1 whitespace-pre-wrap leading-relaxed collapse-content ${isLong ? '' : 'expanded'}">${escapeHtml(obs)}</div>
+    <div id="${oid}" class="mb-1">
+      <div class="text-[10px] text-slate-500 pl-1 border-l-2 border-${toolColor}-500/30 py-1 whitespace-pre-wrap leading-relaxed">${escapeHtml(obs)}</div>
     </div>`;
   }
 
-  // Actions row
-  html += `<div class="flex gap-1.5 items-center mt-2 pt-1.5 border-t border-white/5">
-    <button onclick="copyStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy step data">copy</button>
-    <button onclick="editStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit and resubmit">edit</button>
-    <button onclick="rerunStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Rerun this step">rerun</button>
-    <button onclick="deleteStep('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Delete this step">delete</button>
-    <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Branch from here">branch</button>
-  </div>`;
+  // Actions row (only for real tool steps, not system messages)
+  if (!isSystem) {
+    html += `<div class="flex gap-1.5 items-center mt-1.5 pt-1.5 border-t border-white/5">
+      <button onclick="copyStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy step data">copy</button>
+      <button onclick="editStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit and resubmit">edit</button>
+      <button onclick="rerunStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Rerun this step">rerun</button>
+      <button onclick="deleteStep('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Delete this step">delete</button>
+      <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Branch from here">branch</button>
+    </div>`;
+  }
 
   d.innerHTML = html;
   conversation.appendChild(d);
-
-  // Remove placeholder if present
-  const placeholder = conversation.querySelector('.text-slate-600.italic');
-  if (placeholder && placeholder.textContent.includes('ready')) placeholder.remove();
-
+  removeWelcome();
   scrollChat();
-}
-
-function escapeHtml(s) {
-  if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // --- Step Actions ---
 function copyStep(id) {
-  const el = $(id);
-  if (!el) return;
-  const step = el.dataset.step;
-  navigator.clipboard.writeText(step).catch(() => {});
-  addMsg('step copied to clipboard', 'slate-500');
+  const el = $(id); if (!el) return;
+  navigator.clipboard.writeText(el.dataset.step).catch(()=>{});
+  addMsg('step copied', 'slate-500');
 }
 
 function editStep(id) {
-  const el = $(id);
-  if (!el) return;
+  const el = $(id); if (!el) return;
   const step = JSON.parse(el.dataset.step || '{}');
-  // Pre-fill task goal with the step's tool call
-  $('task-goal').value = `Tool: ${step.tool_name}\nArgs: ${JSON.stringify(step.tool_args || {})}\n\n# Edit and relaunch`;
-  addMsg('step loaded for editing — adjust and launch', 'indigo-400');
+  if (step.tool_name === 'direct_talk') {
+    $('msg-input').value = (step.tool_args && step.tool_args.message) || step.observation.replace(/^User said: /, '');
+    addMsg('talk message loaded — edit and respond', 'indigo-400');
+  } else {
+    $('msg-input').value = `/${step.tool_name} ${JSON.stringify(step.tool_args||{})}`;
+    addMsg('step loaded in input — edit and send', 'indigo-400');
+  }
+  $('msg-input').focus();
 }
 
 async function rerunStep(id) {
-  const el = $(id);
-  if (!el) return;
+  const el = $(id); if (!el) return;
   const step = JSON.parse(el.dataset.step || '{}');
-  // Submit as a direct instruction to the agent via talk
   const msg = `Rerun step ${step.step_number}: ${step.tool_name} with args ${JSON.stringify(step.tool_args)}`;
   try {
     await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg, session_id:sessionId}) });
@@ -537,35 +624,27 @@ async function rerunStep(id) {
 }
 
 async function deleteStep(id) {
-  const el = $(id);
-  if (!el) return;
+  const el = $(id); if (!el) return;
   try {
     const step = JSON.parse(el.dataset.step || '{}');
-    const sn = step.step_number;
-    await fetch(`/api/task/history/${sn}?session_id=${sessionId}`, { method:'DELETE' });
+    await fetch(`/api/task/history/${step.step_number}?session_id=${sessionId}`, { method:'DELETE' });
     el.remove();
-    addMsg(`step ${sn} deleted`, 'rose-400');
+    addMsg(`step ${step.step_number} deleted`, 'rose-400');
   } catch(_) {}
 }
 
 async function branchHere(id) {
-  const el = $(id);
-  if (!el) return;
+  const el = $(id); if (!el) return;
+  const stepNumber = parseInt(el.dataset.stepNumber);
   try {
-    await fetch('/api/task/branch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) });
-    addMsg('branched from this point', 'indigo-400');
-  } catch(_) {}
-}
-
-async function overrideStep(id) {
-  const el = $(id);
-  if (!el) return;
-  const step = JSON.parse(el.dataset.step || '{}');
-  const feedback = prompt('Override feedback for the agent:');
-  if (feedback === null) return;
-  try {
-    await fetch('/api/task/override', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:feedback, session_id:sessionId}) });
-    addMsg(`overseer overridden: ${feedback}`, 'indigo-400');
+    await fetch('/api/task/branch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId, step_number:stepNumber}) });
+    // Remove all step elements after this one
+    const allSteps = conversation.querySelectorAll('[id^="step-"]');
+    let removed = 0;
+    allSteps.forEach(s => {
+      if (parseInt(s.dataset.stepNumber) > stepNumber) { s.remove(); removed++; }
+    });
+    addMsg(`branched at step ${stepNumber} (removed ${removed} following steps)`, 'indigo-400');
   } catch(_) {}
 }
 
@@ -582,32 +661,26 @@ function addOverseerReview(msg) {
   let html = `<div class="flex items-center justify-between mb-1">
     <span class="text-[9px] font-bold text-${color}-400 uppercase tracking-wider">overseer: ${status}</span>
     <div class="flex gap-1">
-      <button onclick="toggleExp('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">${'expand/collapse'}</button>
-      ${!approved ? `<button onclick="overrideStepForOverseer()" class="text-[9px] text-indigo-400 hover:text-indigo-300 transition">override</button>` : ''}
+      <button onclick="toggle('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">expand</button>
+      ${!approved ? `<button onclick="overrideOverseer()" class="text-[9px] text-indigo-400 hover:text-indigo-300 transition">override</button>` : ''}
     </div>
   </div>
-  <div class="collapse-content overseer-content" id="${id}">
-    <p class="text-[10px] text-slate-400">${escapeHtml(msg.reasoning || '')}</p>
+  <div id="${id}" class="hidden">
+    <p class="text-[10px] text-slate-400">${escapeHtml(msg.reasoning||'')}</p>
     ${msg.feedback ? `<p class="text-[10px] text-slate-500 mt-1 italic">${escapeHtml(msg.feedback)}</p>` : ''}
   </div>`;
 
   d.innerHTML = html;
-
-  // Insert before the last step or at the top of the conversation
-  const lastStep = conversation.querySelector('[id^="step-"]:last-of-type');
-  if (lastStep && lastStep.parentNode) {
-    lastStep.parentNode.insertBefore(d, lastStep.nextSibling);
-  } else {
-    conversation.appendChild(d);
-  }
+  conversation.appendChild(d);
+  removeWelcome();
+  scrollChat();
 
   if (!approved) {
-    addMsg(`overseer: ${status} — ${(msg.reasoning||'').slice(0,120)}`, 'rose-400');
+    addMsg(`overseer: ${status}`, 'rose-400');
   }
-  scrollChat();
 }
 
-async function overrideStepForOverseer() {
+async function overrideOverseer() {
   const feedback = prompt('Override feedback for the agent:');
   if (feedback === null) return;
   try {
@@ -629,34 +702,38 @@ function showApproval(msg) {
   setTimeout(() => $('feedback-input')?.focus(), 100);
 }
 
-function hideApproval() {
-  approvalBanner.classList.add('hidden');
-}
+function hideApproval() { approvalBanner.classList.add('hidden'); }
 
 // --- Async Actions ---
-async function startTask() {
-  const goal = $('task-goal').value.trim();
-  if (!goal) { $('task-goal').focus(); return; }
-
-  const mode = $('approval-mode').value;
-  const steps = parseInt($('max-steps').value) || 15;
-
-  hideApproval();
-  setStatus('running');
-  isRunning = true;
-  $('start-btn').disabled = true;
-
-  // Clear if first task
-  const placeholder = conversation.querySelector('.text-slate-600.italic');
-  if (placeholder) placeholder.remove();
-
-  addMsg(`launching: ${goal} (mode: ${mode}, steps: ${steps})`, 'indigo-400');
-
-  try {
-    const r = await fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal, approval_mode:mode, max_steps:steps, session_id:sessionId}) });
-    if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'request failed'}`, 'rose-400'); setStatus('error'); isRunning = false; }
-  } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); setStatus('error'); isRunning = false; }
-  $('start-btn').disabled = false;
+async function handleSend() {
+  const text = $('msg-input').value.trim();
+  if (!text) return;
+  const statusText = ($('status-badge').textContent || '').trim().toLowerCase();
+  if (statusText === 'paused') {
+    // Resume the paused task
+    try {
+      await fetch('/api/task/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved:true, feedback:text, session_id:sessionId}) });
+      addMsg(`resumed: "${text.slice(0,120)}"`, 'indigo-400');
+    } catch(_) {}
+  } else if (isRunning) {
+    // Send as direct talk to agent mid-task
+    try {
+      await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+      addMsg(`talk: "${text.slice(0,120)}"`, 'indigo-400');
+    } catch(_) {}
+  } else {
+    // Start a new task
+    const mode = $('approval-mode').value;
+    hideApproval();
+    setStatus('running');
+    isRunning = true;
+    addMsg(`launching: ${text} (${mode})`, 'indigo-400');
+    try {
+      const r = await fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal:text, approval_mode:mode, max_steps:9999, session_id:sessionId}) });
+      if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'error'}`, 'rose-400'); setStatus('error'); isRunning = false; }
+    } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); setStatus('error'); isRunning = false; }
+  }
+  $('msg-input').value = '';
 }
 
 async function submitApproval(approved) {
@@ -668,19 +745,8 @@ async function submitApproval(approved) {
 async function stopTask() {
   try { await fetch('/api/task/stop', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); addMsg('stop requested', 'rose-400'); } catch(_) {}
 }
-
 async function pauseTask() {
   try { await fetch('/api/task/stop-after-step', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); addMsg('will pause after current step', 'amber-400'); } catch(_) {}
-}
-
-async function talkToAgent() {
-  const msg = $('task-goal').value.trim();
-  if (!msg) return;
-  try {
-    await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg, session_id:sessionId}) });
-    addMsg(`talk: "${msg.slice(0,80)}"`, 'indigo-400');
-    $('task-goal').value = '';
-  } catch(_) {}
 }
 
 // --- Self-Dev Controls ---
@@ -706,19 +772,78 @@ async function sdStatus() {
 }
 
 // --- Event Listeners ---
-$('start-btn').onclick = startTask;
+$('start-btn').onclick = handleSend;
+$('respond-btn').onclick = async () => {
+  const text = $('msg-input').value.trim();
+  if (!text) return;
+  $('msg-input').value = '';
+  // Check current status badge for paused state
+  const statusText = ($('status-badge').textContent || '').trim().toLowerCase();
+  if (statusText === 'paused') {
+    // Resume the paused task with the message
+    try {
+      await fetch('/api/task/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved:true, feedback:text, session_id:sessionId}) });
+      addMsg(`resumed: "${text.slice(0,120)}"`, 'indigo-400');
+    } catch(_) { addMsg('failed to resume', 'rose-400'); }
+  } else if (isRunning) {
+    // Send as direct talk and the orchestrator will respond on next step
+    try {
+      await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+      addMsg(`asked: "${text.slice(0,120)}"`, 'indigo-400');
+    } catch(_) { addMsg('failed to send', 'rose-400'); }
+  } else {
+    // Start a new task so the agent will respond
+    const mode = $('approval-mode').value;
+    hideApproval();
+    setStatus('running');
+    isRunning = true;
+    addMsg(`respond: ${text}`, 'indigo-400');
+    try {
+      const r = await fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal:text, approval_mode:mode, max_steps:9999, session_id:sessionId}) });
+      if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'error'}`, 'rose-400'); setStatus('error'); isRunning = false; }
+    } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); setStatus('error'); isRunning = false; }
+  }
+};
 $('approve-btn').onclick = () => submitApproval(true);
 $('reject-btn').onclick = () => submitApproval(false);
 $('stop-btn').onclick = stopTask;
 $('pause-btn').onclick = pauseTask;
-$('talk-btn').onclick = talkToAgent;
+$('fresh-btn').onclick = async () => {
+  // Create new session and reset the UI
+  try {
+    const r = await fetch('/api/session/create', {method:'POST'});
+    const d = await r.json();
+    sessionId = d.session_id;
+    $('session-label').textContent = sessionId;
+    $('settings-session').textContent = sessionId;
+    const url = new URL(location); url.searchParams.set('session', sessionId); history.replaceState({},'',url);
+    // Reset conversation
+    conversation.innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">fresh chat. what would you like to do?</div>`;
+    $('todo-panel').classList.add('hidden');
+    $('todo-items').innerHTML = '';
+    stepCount = 0;
+    isRunning = false;
+    setStatus('idle');
+    $('start-btn').disabled = false;
+    $('stop-btn').disabled = true;
+    $('pause-btn').disabled = true;
+    addMsg('new session started', 'slate-500');
+  } catch(_) {}
+};
 
 document.querySelectorAll('.nav-tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
 
-$('notes-save-btn').onclick = saveNotes;
-$('notes-refresh-btn').onclick = loadNotes;
-$('mem-optimize-btn').onclick = async () => { try { await fetch('/api/memory/optimize',{method:'POST'}); loadMemoryGraph(); addMsg('memory optimization triggered','indigo-400'); } catch(_) {} };
-$('mem-refresh-btn').onclick = loadMemoryGraph;
+// Notes
+$('notes-editor').addEventListener('blur', () => { if ($('notes-editor').value.trim()) saveNotes(true); });
+
+// Memory tab buttons
+$('mtab-graph').onclick = () => switchMtab('graph');
+$('mtab-rules').onclick = () => switchMtab('rules');
+$('mtab-neighbors').onclick = () => switchMtab('neighbors');
+$('mem-optimize-btn').onclick = async () => { try { await fetch('/api/memory/optimize',{method:'POST'}); loadMemoryGraph(); addMsg('memory optimized','indigo-400'); } catch(_) {} };
+$('mem-refresh-btn').onclick = () => loadMemoryGraph('graph');
+
+// Self-dev
 $('sd-init-btn').onclick = sdInit;
 $('sd-test-btn').onclick = sdTest;
 $('sd-deploy-btn').onclick = sdDeploy;
@@ -728,56 +853,14 @@ $('settings-new-session').onclick = async () => {
   sessionId = d.session_id;
   $('session-label').textContent = sessionId;
   $('settings-session').textContent = sessionId;
-  $('info-session').textContent = sessionId;
   const url = new URL(location); url.searchParams.set('session', sessionId); history.replaceState({},'',url);
   addMsg(`new session: ${sessionId}`, 'indigo-400');
 };
 
-// Memory tab buttons
-$('tab-graph')?.addEventListener('click', () => {
-  $('memory-graph-full')?.classList.remove('hidden');
-  $('mem-rules')?.classList.add('hidden');
-  $('mem-neighbors')?.classList.add('hidden');
-  ['tab-graph','tab-rules','tab-neighbors'].forEach(id => {
-    const el = $(id); if (!el) return;
-    el.className = id==='tab-graph' ? 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400' : 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-  });
-});
-$('tab-rules')?.addEventListener('click', async () => {
-  $('memory-graph-full')?.classList.add('hidden');
-  $('mem-rules')?.classList.remove('hidden');
-  $('mem-neighbors')?.classList.add('hidden');
-  ['tab-graph','tab-rules','tab-neighbors'].forEach(id => {
-    const el = $(id); if (!el) return;
-    el.className = id==='tab-rules' ? 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400' : 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-  });
-  try { const r = await fetch('/api/state'); const d = await r.json(); $('mem-rules').textContent = d.rules || '[no rules]'; } catch(_) {}
-});
-$('tab-neighbors')?.addEventListener('click', async () => {
-  $('memory-graph-full')?.classList.add('hidden');
-  $('mem-rules')?.classList.add('hidden');
-  $('mem-neighbors')?.classList.remove('hidden');
-  ['tab-graph','tab-rules','tab-neighbors'].forEach(id => {
-    const el = $(id); if (!el) return;
-    el.className = id==='tab-neighbors' ? 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400' : 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-  });
-  try { const r = await fetch('/api/memory'); const d = await r.json();
-    if (d.neighborhood) {
-      let txt = '';
-      ['current','children','links','root'].forEach(k => {
-        if (k === 'current' && d.neighborhood.current) txt += `CURRENT: ${d.neighborhood.current.title}\n  id: ${d.neighborhood.current.id}\n`;
-        else if (k === 'children' && d.neighborhood.children?.length) d.neighborhood.children.forEach(c => { txt += `CHILD: ${c.title}\n  id: ${c.id}\n`; });
-        else if (k === 'links' && d.neighborhood.links?.length) d.neighborhood.links.forEach(l => { txt += `LINK: ${l.title}\n  id: ${l.id}\n`; });
-        else if (k === 'root' && d.root) txt += `ROOT: ${d.root.title}\n`;
-      });
-      $('mem-neighbors').textContent = txt || '[empty]';
-    } else { $('mem-neighbors').textContent = '[no data]'; }
-  } catch(_) {}
-});
-
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.ctrlKey) { startTask(); return; }
+  if (e.key === 'Enter' && e.ctrlKey) { handleSend(); return; }
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) { e.preventDefault(); handleSend(); return; }
   if (!approvalBanner.classList.contains('hidden')) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitApproval(true); }
     if (e.key === 'Escape') { submitApproval(false); }
@@ -789,8 +872,9 @@ document.addEventListener('keydown', e => {
   await initSession();
   connectWS();
   switchView('console');
-  // Pre-populate notes if empty
   loadNotes();
+  fetchTodos();
+  setInterval(fetchTodos, 5000);
 })();
 </script>
 </body>
