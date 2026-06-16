@@ -8,8 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0b0f1a;--surface:#111827;--border:rgba(255,255,255,0.06);--text:#e2e8f0;--muted:#64748b;--accent:#38bdf8;--accent-dim:rgba(56,189,248,0.15)}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+:root{--bg:#0b0f1a;--surface:#111827;--border:rgba(255,255,255,0.06);--text:#e2e8f0;--muted:#64748b;--accent:#6366f1;--accent-dim:rgba(99,102,241,0.15)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100dvh;overflow:hidden}
 .mono{font-family:'JetBrains Mono',monospace}
 .glass{background:var(--surface);border:1px solid var(--border);backdrop-filter:blur(8px)}
 .scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
@@ -18,227 +18,267 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
 .pulse-dot{width:6px;height:6px;border-radius:999px;animation:pulse-dot 1.5s ease-in-out infinite}
-@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-.slide-up{animation:slideUp .25s ease-out}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.slide-up{animation:slideUp .2s ease-out}
+.collapse-content{max-height:200px;overflow:hidden;transition:max-height .2s ease}
+.collapse-content.expanded{max-height:none}
+.collapse-content.overseer-content{max-height:100px}
+.collapse-content.overseer-content.expanded{max-height:none}
 </style>
 </head>
 <body>
-<div id="app" class="h-screen flex flex-col p-3 gap-3" style="min-height:0">
+<div id="app" class="h-dvh flex flex-col" style="min-height:0">
 
-  <!-- Header -->
-  <header class="glass rounded-xl px-5 py-3 flex items-center justify-between shrink-0">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">A</div>
-      <div>
-        <h1 class="text-sm font-bold tracking-tight">agentic</h1>
-        <p class="text-[10px] text-slate-500 font-medium uppercase tracking-widest">dev framework</p>
+  <!-- Header with Tabs -->
+  <header class="glass shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/5 flex-nowrap overflow-x-auto">
+    <div class="flex items-center gap-2 shrink-0 mr-2">
+      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-xs">A</div>
+      <span class="text-xs font-bold tracking-tight hidden sm:inline">agentic</span>
+    </div>
+    <nav class="flex items-center gap-0.5 bg-black/30 rounded-lg p-0.5 shrink-0">
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-view="console">chat</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="memory">memory</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="notes">notes</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="settings">settings</button>
+    </nav>
+    <div class="flex-1 min-w-[8px]"></div>
+    <div class="flex items-center gap-2 shrink-0">
+      <span id="session-label" class="text-[9px] font-mono text-slate-600 bg-white/5 px-1.5 py-0.5 rounded hidden sm:inline" title="session id">--</span>
+      <div id="status-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+        <span class="pulse-dot bg-slate-400"></span><span class="hidden sm:inline">idle</span><span class="sm:hidden">-</span>
+      </div>
+      <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+        <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
       </div>
     </div>
-      <div class="flex items-center gap-3">
-        <span id="session-label" class="text-[10px] font-mono text-slate-600 bg-white/5 px-2 py-1 rounded" title="session id">--</span>
-        <div id="status-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
-          <span class="pulse-dot bg-slate-400"></span> idle
-        </div>
-        <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
-          <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-          <span id="connection-text">connecting</span>
-        </div>
-      </div>
   </header>
 
-  <!-- Main Grid -->
-  <div class="flex-1 grid grid-cols-12 gap-3" style="min-height:0">
+  <!-- Console View -->
+  <div id="panel-console" class="flex-1 flex flex-col min-h-0">
 
-    <!-- Left Column: Config -->
-    <div class="col-span-3 flex flex-col gap-3">
-
-      <!-- Config Panel -->
-      <section class="glass rounded-xl p-4 flex flex-col gap-3">
-        <div class="flex items-center gap-2 text-slate-400 mb-1">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider">configure</h2>
-        </div>
-        <div>
-          <label class="text-[10px] font-medium text-slate-500 mb-1.5 block">task goal</label>
-          <textarea id="task-goal" rows="4" class="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition resize-none mono" placeholder="Create a hello.py that prints hello world..."></textarea>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-[10px] font-medium text-slate-500 mb-1.5 block">approval</label>
-            <select id="approval-mode" class="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50 cursor-pointer">
-              <option value="AUTO_APPROVE">auto</option>
-              <option value="CHECK_WITH_OVERSEER">overseer</option>
-              <option value="WAIT_FOR_USER" selected>hitl (user)</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-[10px] font-medium text-slate-500 mb-1.5 block">max steps</label>
-            <input id="max-steps" type="number" value="15" min="1" max="100" class="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50">
-          </div>
-        </div>
-        <button id="start-btn" class="w-full py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 rounded-lg font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
-          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          launch
-        </button>
-      </section>
-
-      <!-- Telemetry + Controls -->
-      <section class="glass rounded-xl p-4 flex flex-col gap-3" style="min-height:0">
-        <div class="flex items-center gap-2 text-slate-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider">telemetry</h2>
-        </div>
-        <div class="space-y-2 pr-1">
-          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
-            <span class="text-[11px] text-slate-400">status</span>
-            <span id="tel-status" class="text-[11px] font-semibold text-slate-500">idle</span>
-          </div>
-          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
-            <span class="text-[11px] text-slate-400">step</span>
-            <span id="tel-step" class="text-[11px] font-semibold text-slate-500 font-mono">0 / 0</span>
-          </div>
-          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
-            <span class="text-[11px] text-slate-400">mode</span>
-            <span id="tel-mode" class="text-[11px] font-semibold text-slate-500">--</span>
-          </div>
-          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
-            <span class="text-[11px] text-slate-400">steps executed</span>
-            <span id="tel-executed" class="text-[11px] font-semibold text-slate-500 font-mono">0</span>
-          </div>
-        </div>
-        <div class="flex gap-2 pt-1">
-          <button id="stop-btn" class="flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
-          <button id="pause-btn" class="flex-1 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
-        </div>
-        <div class="flex gap-2">
-          <input id="talk-input" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-sky-500/50" placeholder="direct message to agent..." disabled>
-          <button id="talk-btn" class="px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600/40 border border-sky-600/30 rounded-lg text-[10px] font-bold text-sky-400 transition disabled:opacity-30" disabled>send</button>
-        </div>
-      </section>
+    <!-- Conversation Area -->
+    <div id="conversation" class="flex-1 scroll px-3 py-2 space-y-2">
+      <div class="text-slate-600 italic text-[11px] text-center py-8">ready. set a goal and launch a task.</div>
     </div>
 
-    <!-- Center Column: Terminal -->
-    <div class="col-span-6 flex flex-col gap-3">
-      <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden relative" style="min-height:0">
-        <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-black/30 shrink-0">
-          <div class="flex items-center gap-2 text-slate-400">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider">terminal</h2>
-          </div>
-          <button id="clear-terminal" class="text-[10px] text-slate-600 hover:text-slate-400 transition font-medium">clear</button>
+    <!-- Input & Controls -->
+    <div class="shrink-0 glass border-t border-white/5 px-3 py-2 space-y-2">
+      <!-- Task input row -->
+      <div class="flex gap-2">
+        <input id="task-goal" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50" placeholder="Task goal: create a hello.py that says hello...">
+        <button id="start-btn" class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 rounded-lg font-semibold text-[11px] tracking-wide transition disabled:opacity-40 whitespace-nowrap">launch</button>
+        <button id="talk-btn" class="px-3 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[10px] font-bold text-indigo-400 transition disabled:opacity-30 whitespace-nowrap" disabled>talk</button>
+      </div>
+      <!-- Control row -->
+      <div class="flex gap-2 items-center flex-wrap">
+        <button id="stop-btn" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
+        <button id="pause-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
+        <div class="flex items-center gap-1 text-[10px] text-slate-600 ml-auto">
+          <label class="hidden sm:inline">mode:</label>
+          <select id="approval-mode" class="bg-black/40 border border-white/5 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none cursor-pointer">
+            <option value="AUTO_APPROVE">auto</option>
+            <option value="CHECK_WITH_OVERSEER">overseer</option>
+            <option value="WAIT_FOR_USER" selected>user</option>
+          </select>
+          <label class="hidden sm:inline ml-1">steps:</label>
+          <input id="max-steps" type="number" value="15" min="1" max="100" class="w-12 bg-black/40 border border-white/5 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none">
         </div>
-        <div id="terminal" class="flex-1 scroll p-3 mono text-[12px] leading-relaxed space-y-2">
-          <div class="text-slate-600 italic text-[11px]">ready. configure and launch a task.</div>
-        </div>
+      </div>
+    </div>
 
-        <!-- HITL Banner -->
-        <div id="approval-banner" class="hidden absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/80 to-transparent">
-          <div class="bg-amber-950/40 border border-amber-600/30 rounded-xl p-4 backdrop-blur slide-up">
-            <div class="flex items-start gap-3">
-              <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-              </div>
-              <div class="flex-1 space-y-2">
-                <p class="text-xs font-semibold text-amber-300">approval required</p>
-                <p id="approval-thought" class="text-[11px] text-slate-400 italic leading-relaxed"></p>
-                <div class="bg-black/40 rounded-lg p-2.5 border border-white/5">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wider">tool</span>
-                    <span id="approval-tool" class="text-[11px] font-mono text-sky-400 font-medium"></span>
-                  </div>
-                  <pre id="approval-args" class="text-[10px] text-slate-500 font-mono truncate"></pre>
-                </div>
-                <div class="flex gap-2">
-                  <input id="feedback-input" type="text" class="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 transition" placeholder="feedback (optional)">
-                  <button id="approve-btn" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[11px] font-semibold transition">approve</button>
-                  <button id="reject-btn" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-[11px] font-semibold transition">reject</button>
-                </div>
-              </div>
+    <!-- Approval Banner (overlaid at bottom of console) -->
+    <div id="approval-banner" class="hidden shrink-0 px-3 py-2 bg-gradient-to-t from-black/95 via-black/90 to-transparent">
+      <div class="bg-amber-950/40 border border-amber-600/30 rounded-xl p-3 backdrop-blur slide-up">
+        <div class="flex items-start gap-2">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xs">!</div>
+          <div class="flex-1 min-w-0 space-y-1.5">
+            <p id="approval-title" class="text-[11px] font-semibold text-amber-300">approval required</p>
+            <p id="approval-thought" class="text-[10px] text-slate-400 italic leading-relaxed"></p>
+            <div class="flex gap-1.5">
+              <input id="feedback-input" type="text" class="flex-1 bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 transition min-w-0" placeholder="answer or feedback...">
+              <button id="approve-btn" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-semibold transition whitespace-nowrap">send</button>
+              <button id="reject-btn" class="px-3 py-1.5 bg-rose-600/60 hover:bg-rose-500 rounded-lg text-[10px] font-semibold transition whitespace-nowrap">skip</button>
             </div>
           </div>
         </div>
-      </section>
+      </div>
     </div>
+  </div>
 
-    <!-- Right Column: Overseer + State -->
-    <div class="col-span-3 flex flex-col gap-3">
+  <!-- Memory View -->
+  <div id="panel-memory" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+        <div class="flex items-center gap-2 text-slate-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider">memory graph</h2>
+        </div>
+        <div class="flex gap-2">
+          <button id="mem-optimize-btn" class="px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded text-[9px] font-bold text-indigo-400 transition">optimize</button>
+          <button id="mem-refresh-btn" class="px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[9px] font-bold text-slate-400 transition">refresh</button>
+        </div>
+      </div>
+      <div class="flex-1 flex flex-col lg:flex-row gap-3 p-3 min-h-0 overflow-hidden">
+        <pre id="memory-graph-full" class="flex-1 scroll glass rounded-lg p-3 mono text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap"></pre>
+        <div class="lg:w-64 flex flex-col gap-3 shrink-0">
+          <div class="glass rounded-lg p-3">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">neighborhood</h3>
+            <pre id="memory-neighborhood-full" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap"></pre>
+          </div>
+          <div class="glass rounded-lg p-3">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">tabs</h3>
+            <div class="flex border-b border-white/5">
+              <button id="tab-graph" class="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400">graph</button>
+              <button id="tab-rules" class="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent">rules</button>
+              <button id="tab-neighbors" class="flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent">neighbors</button>
+            </div>
+            <div class="mt-2">
+              <pre id="mem-rules" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
+              <pre id="mem-neighbors" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 
-      <!-- Overseer Panel -->
-      <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden" style="min-height:0">
-        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/5 bg-black/30 shrink-0 text-slate-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider">overseer</h2>
+  <!-- Notes View -->
+  <div id="panel-notes" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+        <div class="flex items-center gap-2 text-slate-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider">user notes</h2>
+          <span class="text-[9px] text-slate-600">(agent can read via read_user_notes)</span>
         </div>
-        <div id="overseer-logs" class="flex-1 scroll p-3 space-y-2 text-xs">
-          <div class="text-slate-600 italic text-[11px] text-center mt-6">no reviews yet</div>
+        <div class="flex gap-2">
+          <button id="notes-save-btn" class="px-3 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 rounded-lg text-[9px] font-bold text-emerald-400 transition">save</button>
+          <button id="notes-refresh-btn" class="px-3 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[9px] font-bold text-slate-400 transition">reload</button>
         </div>
-      </section>
+      </div>
+      <textarea id="notes-editor" class="flex-1 bg-black/30 text-slate-200 p-4 font-mono text-[12px] leading-relaxed border-0 outline-none resize-none scroll" placeholder="Write your notes here... The agent can read these via read_user_notes."></textarea>
+      <div class="px-4 py-1.5 border-t border-white/5 bg-black/20 text-[9px] text-slate-600 shrink-0">agent tool: <span class="font-mono text-indigo-400">read_user_notes</span></div>
+    </section>
+  </div>
 
-      <!-- State Viewer (HSWM) -->
-      <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden" style="min-height:0">
-        <div class="flex border-b border-white/5 bg-black/30 shrink-0">
-          <button id="tab-memory" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5 transition">graph</button>
-          <button id="tab-rules" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent transition">rules</button>
-          <button id="tab-neighborhood" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent transition">neighbors</button>
+  <!-- Settings View -->
+  <div id="panel-settings" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/30 shrink-0 text-slate-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+        <h2 class="text-xs font-bold uppercase tracking-wider">settings</h2>
+      </div>
+      <div class="flex-1 scroll p-4 space-y-5">
+        <!-- Self-Development -->
+        <div>
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Self-Development Pipeline</h3>
+          <p class="text-[10px] text-slate-500 mb-2">The agent can safely modify its own codebase through a shadow sandbox. Changes are tested before deployment.</p>
+          <div class="flex gap-2 flex-wrap">
+            <button id="sd-init-btn" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">init shadow</button>
+            <button id="sd-test-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[9px] font-bold text-amber-400 transition">run tests</button>
+            <button id="sd-deploy-btn" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 rounded-lg text-[9px] font-bold text-emerald-400 transition">deploy</button>
+            <button id="sd-status-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[9px] font-bold text-slate-400 transition">status</button>
+          </div>
+          <pre id="sd-output" class="mt-2 bg-black/40 rounded-lg p-3 text-[10px] text-slate-500 mono leading-relaxed min-h-[40px] overflow-x-auto">No self-dev actions yet.</pre>
         </div>
-        <div class="flex-1 relative">
-          <pre id="state-viewer" class="absolute inset-0 scroll p-3 mono text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap"></pre>
-          <div id="rules-viewer" class="absolute inset-0 scroll p-3 text-[12px] text-slate-400 leading-relaxed hidden"></div>
-          <div id="neighborhood-viewer" class="absolute inset-0 scroll p-3 text-[11px] text-slate-400 leading-relaxed hidden mono"></div>
-          <button id="refresh-state" class="absolute bottom-3 right-3 w-7 h-7 bg-slate-800 rounded-lg border border-white/5 flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition" title="refresh">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          </button>
+        <!-- Session -->
+        <div class="border-t border-white/5 pt-4">
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Session</h3>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] text-slate-500">Current:</span>
+            <span id="settings-session" class="text-[10px] font-mono text-indigo-400"></span>
+            <button id="settings-new-session" class="px-3 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">new session</button>
+          </div>
         </div>
-      </section>
-    </div>
+        <!-- Status -->
+        <div class="border-t border-white/5 pt-4">
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Server Info</h3>
+          <div id="server-info" class="text-[10px] text-slate-500 space-y-1">
+            <div class="flex gap-2"><span class="text-slate-600 w-24">Session:</span><span id="info-session" class="font-mono">--</span></div>
+            <div class="flex gap-2"><span class="text-slate-600 w-24">WebSocket:</span><span id="info-ws">--</span></div>
+            <div class="flex gap-2"><span class="text-slate-600 w-24">Status:</span><span id="info-status">--</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const terminal = $('terminal');
-const statusBadge = $('status-badge');
-const telStatus = $('tel-status');
-const telStep = $('tel-step');
-const telMode = $('tel-mode');
-const telExecuted = $('tel-executed');
-const overseerLogs = $('overseer-logs');
-const stateViewer = $('state-viewer');
-const rulesViewer = $('rules-viewer');
+const conversation = $('conversation');
 const approvalBanner = $('approval-banner');
 
 let socket = null;
 let sessionId = null;
-let memoryData = {};
-let rulesData = "";
-let neighborhoodData = null;
-let currentTab = 'memory';
 let isRunning = false;
+let stepCount = 0;
+
+// --- View Switching ---
+function switchView(view) {
+  document.querySelectorAll('[id^="panel-"]').forEach(p => p.classList.add('hidden'));
+  const panel = $(`panel-${view}`);
+  if (panel) panel.classList.remove('hidden');
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    const isActive = t.dataset.view === view;
+    t.className = isActive
+      ? 'nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+      : 'nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition';
+  });
+  if (view === 'notes') loadNotes();
+  if (view === 'memory') loadMemoryGraph();
+}
+
+// --- Notes ---
+async function loadNotes() {
+  try { const r = await fetch('/api/notes'); const d = await r.json(); $('notes-editor').value = d.content; } catch(_) {}
+}
+async function saveNotes() {
+  try {
+    await fetch('/api/notes', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:$('notes-editor').value, session_id:sessionId}) });
+    addMsg('notes saved', 'emerald-400');
+  } catch(_) {}
+}
+
+// --- Memory Graph ---
+async function loadMemoryGraph() {
+  try {
+    const r = await fetch('/api/memory'); const d = await r.json();
+    $('memory-graph-full').textContent = JSON.stringify(d, null, 2);
+    if (d.neighborhood) {
+      let txt = '';
+      const cur = d.neighborhood.current;
+      if (cur) txt += `CURRENT: ${cur.title}  (access: ${cur.access_count})\n`;
+      if (d.neighborhood.children && d.neighborhood.children.length) {
+        txt += '\nCHILDREN:\n';
+        d.neighborhood.children.forEach(c => { txt += `  ${c.has_deeper_detail?'▼':' '} ${c.title} (${(c.id||'').slice(0,8)})\n`; });
+      }
+      if (d.neighborhood.links && d.neighborhood.links.length) {
+        txt += '\nLINKS:\n';
+        d.neighborhood.links.forEach(l => { txt += `  ↔ ${l.title} (${(l.id||'').slice(0,8)})\n`; });
+      }
+      $('memory-neighborhood-full').textContent = txt || '[empty]';
+    }
+  } catch(_) {}
+}
 
 // --- Session Init ---
 async function initSession() {
-  // Use URL param ?session=xxx or create new
   const params = new URLSearchParams(location.search);
   const existing = params.get('session');
-  const body = existing ? JSON.stringify({session_id: existing}) : '{}';
+  const body = existing ? JSON.stringify({session_id:existing}) : '{}';
   try {
-    const r = await fetch('/api/session/create', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body
-    });
+    const r = await fetch('/api/session/create', { method:'POST', headers:{'Content-Type':'application/json'}, body });
     const d = await r.json();
     sessionId = d.session_id;
-    $('session-label').textContent = sessionId;
-    // Update URL without reload
-    const url = new URL(location);
-    url.searchParams.set('session', sessionId);
-    history.replaceState({}, '', url);
-  } catch (_) {
-    sessionId = 'default';
-    $('session-label').textContent = sessionId;
-  }
+  } catch(_) { sessionId = 'default'; }
+  $('session-label').textContent = sessionId;
+  $('settings-session').textContent = sessionId;
+  $('info-session').textContent = sessionId;
+  const url = new URL(location);
+  url.searchParams.set('session', sessionId);
+  history.replaceState({}, '', url);
 }
 
 // --- WebSocket ---
@@ -247,189 +287,353 @@ function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const url = `${proto}//${location.host}/ws/${sessionId}`;
   socket = new WebSocket(url);
-
-  socket.onopen = () => {
-    setConnection(true);
-  };
-
-  socket.onclose = () => {
-    setConnection(false);
-    setTimeout(connectWS, 2000);
-  };
-
-  socket.onerror = () => {
-    setConnection(false);
-  };
-
-  socket.onmessage = e => {
-    try {
-      handle(JSON.parse(e.data));
-    } catch(_) {}
-  };
+  socket.onopen = () => setConnection(true);
+  socket.onclose = () => { setConnection(false); setTimeout(connectWS, 2000); };
+  socket.onerror = () => setConnection(false);
+  socket.onmessage = e => { try { handle(JSON.parse(e.data)); } catch(_) {} };
 }
 
 function setConnection(ok) {
   const dot = $('connection-dot');
-  const txt = $('connection-text');
   const badge = $('connection-badge');
+  $('info-ws').textContent = ok ? 'connected' : 'disconnected';
   if (ok) {
     dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
-    txt.textContent = 'connected';
     badge.className = 'badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
   } else {
     dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
-    txt.textContent = 'disconnected';
     badge.className = 'badge bg-rose-500/10 text-rose-400 border border-rose-500/20';
   }
 }
 
 // --- Message Handling ---
 function handle(msg) {
-  // Filter by session if present in message
   if (msg.session_id && msg.session_id !== sessionId) return;
   switch (msg.type) {
     case 'step_update':
-      addStep(msg.step);
-      telExecuted.textContent = msg.step.step_number || '0';
+      addStep(msg.step, msg.diagnostics);
       break;
     case 'step_start':
-      telStep.textContent = `${msg.step_number} / ${msg.max_steps}`;
+      addMsg(`step ${msg.step_number} starting...`, 'indigo-400');
+      if (msg.diagnostics) updateDiag(msg.diagnostics);
       break;
     case 'status_update':
       setStatus(msg.status === 'RUNNING' ? 'running' : msg.status.toLowerCase());
-      if (msg.goal) addLog(`task: ${msg.goal}`, 'slate-500');
-      if (msg.approval_mode) telMode.textContent = msg.approval_mode;
-      if (msg.max_steps) telStep.textContent = `1 / ${msg.max_steps}`;
+      if (msg.goal) addMsg(`task: ${msg.goal}`, 'slate-400');
       isRunning = msg.status === 'RUNNING';
       break;
     case 'task_complete':
       setStatus(msg.status === 'COMPLETED' ? 'completed' : msg.status.toLowerCase());
       isRunning = false;
-      addLog(`task ${msg.status.toLowerCase()} (${msg.steps} steps)`, msg.status === 'COMPLETED' ? 'emerald-400' : 'amber-400');
+      addMsg(`task ${msg.status.toLowerCase()} (${msg.steps} steps)`, msg.status === 'COMPLETED' ? 'emerald-400' : 'amber-400');
       break;
     case 'llm_call':
-      addLog(`llm call...`, 'sky-500');
+      addExpandable('llm call...', `Calling model...`, 'sky-400');
       break;
     case 'llm_response':
-      addLog(`llm response received`, 'emerald-500');
+      addExpandable('llm response', msg.diagnostics ? `${msg.diagnostics.generation_time_s?.toFixed(2)||'?'}s | ${msg.diagnostics.tokens_per_second?.toFixed(1)||'?'} t/s` : 'received', 'emerald-500');
+      if (msg.diagnostics) updateDiag(msg.diagnostics);
       break;
     case 'overseer_review_start':
-      addLog(`overseer reviewing...`, 'indigo-400');
+      addExpandable('overseer reviewing...', 'Reviewing action...', 'indigo-400');
       break;
     case 'overseer_review':
       addOverseerReview(msg);
       break;
     case 'awaiting_user_approval':
+    case 'ask_user':
       showApproval(msg);
       break;
     case 'user_decision':
       hideApproval();
-      addLog(`user: ${msg.approved ? 'approved' : 'rejected'}${msg.feedback ? ' (' + msg.feedback + ')' : ''}`, msg.approved ? 'emerald-400' : 'rose-400');
+      addMsg(`you: ${msg.approved ? 'approved' : 'rejected'}${msg.feedback ? ' ('+msg.feedback+')' : ''}`, msg.approved ? 'emerald-400' : 'rose-400');
       break;
-    case 'ping':
-      break;
+    case 'ping': break;
     case 'error':
-      addLog(`error: ${msg.message}`, 'rose-400');
-      setStatus('error');
-      isRunning = false;
+      addMsg(`error: ${msg.message}`, 'rose-400');
+      setStatus('error'); isRunning = false;
       break;
   }
 }
 
+function updateDiag(d) {
+  if (!d) return;
+  // Diagnostics shown in step cards, no separate panel needed
+}
+
 function setStatus(s) {
-  const badge = statusBadge;
+  const badge = $('status-badge');
   const colors = {
-    idle: ['bg-slate-800', 'text-slate-400', 'bg-slate-500'],
-    running: ['bg-sky-500/10', 'text-sky-400', 'bg-sky-400'],
-    completed: ['bg-emerald-500/10', 'text-emerald-400', 'bg-emerald-400'],
-    failed: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
-    error: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
-    paused: ['bg-amber-500/10', 'text-amber-400', 'bg-amber-400'],
-    stopped: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
-    branching: ['bg-indigo-500/10', 'text-indigo-400', 'bg-indigo-400'],
+    idle: ['bg-slate-800','text-slate-400','bg-slate-500'], running: ['bg-indigo-500/10','text-indigo-400','bg-indigo-400'],
+    completed: ['bg-emerald-500/10','text-emerald-400','bg-emerald-400'], failed: ['bg-rose-500/10','text-rose-400','bg-rose-500'],
+    error: ['bg-rose-500/10','text-rose-400','bg-rose-500'], paused: ['bg-amber-500/10','text-amber-400','bg-amber-400'],
+    stopped: ['bg-rose-500/10','text-rose-400','bg-rose-500'],
   };
   const c = colors[s] || colors.idle;
   badge.className = `badge ${c[0]} ${c[1]} border border-white/5`;
   const dotEl = badge.querySelector('.pulse-dot');
   if (dotEl) dotEl.className = `pulse-dot ${c[2]}`;
-  if (badge.childNodes.length >= 3) {
-    badge.childNodes[2].textContent = s;
-  } else {
-    badge.innerHTML = `<span class="pulse-dot ${c[2]}"></span> ${s}`;
-  }
-  telStatus.textContent = s;
-  enableControls(s === 'running');
-  if (s === 'running' || s === 'running') {
-    $('start-btn').disabled = true;
-  } else {
-    $('start-btn').disabled = false;
-  }
+  const label = badge.childNodes.length >= 3 ? badge.childNodes[2] : null;
+  if (label) label.textContent = s;
+  else badge.innerHTML = `<span class="pulse-dot ${c[2]}"></span> ${s}`;
+  $('info-status').textContent = s;
+  $('start-btn').disabled = s === 'running';
+  $('stop-btn').disabled = s !== 'running';
+  $('pause-btn').disabled = s !== 'running';
+  $('talk-btn').disabled = s !== 'running';
 }
 
-function addLog(text, color = 'slate-400') {
+function addMsg(text, color='slate-400') {
   const d = document.createElement('div');
-  d.className = `text-${color} slide-up`;
-  d.innerHTML = `<span class="text-slate-600 mr-2">&#9656;</span>${text}`;
-  terminal.appendChild(d);
-  terminal.scrollTop = terminal.scrollHeight;
+  d.className = `text-${color} text-[11px] slide-up`;
+  d.innerHTML = `<span class="text-slate-600 mr-1.5">&#9656;</span>${text}`;
+  conversation.appendChild(d);
+  scrollChat();
 }
 
-function addStep(step) {
+function scrollChat() { conversation.scrollTop = conversation.scrollHeight; }
+
+function addExpandable(title, detail, color='slate-400') {
+  const id = 'exp-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
   const d = document.createElement('div');
-  const toolColor = step.tool_name.includes('error') ? 'rose' : step.tool_name === 'finish_task' ? 'emerald' : 'sky';
-  d.className = 'slide-up';
-  d.innerHTML = `
-    <div class="flex items-center gap-2 mb-1">
-      <span class="text-[10px] font-bold text-slate-600 bg-white/5 px-1.5 py-0.5 rounded">step ${step.step_number}</span>
-      <span class="text-[11px] font-bold text-${toolColor}-400 mono">${step.tool_name}</span>
-    </div>
-    <div class="text-slate-400 italic text-[11px] mb-1.5 pl-1">${step.thought || ''}</div>
-    <div class="bg-black/30 border border-white/5 rounded p-2 text-[10px] text-slate-500 mono mb-1.5 overflow-x-auto">${JSON.stringify(step.tool_args)}</div>
-    <div class="text-slate-500 text-[11px] pl-1 border-l-2 border-${toolColor}-500/30 py-1 mb-3 whitespace-pre-wrap">${step.observation || ''}</div>
-  `;
-  terminal.appendChild(d);
-  terminal.scrollTop = terminal.scrollHeight;
-  refreshState();
+  d.className = `slide-up text-[11px]`;
+  d.innerHTML = `<button onclick="toggleExp('${id}')" class="flex items-center gap-1.5 text-${color} w-full text-left">
+    <span id="${id}-icon" class="text-slate-600 text-[9px] transition-transform">&#9654;</span>
+    <span class="font-medium">${title}</span>
+    <span class="text-slate-600 text-[10px] ml-1">${detail}</span>
+  </button>
+  <div id="${id}" class="hidden pl-4 mt-1 text-slate-500 text-[10px]">${detail}</div>`;
+  conversation.appendChild(d);
+  scrollChat();
 }
 
+function toggleExp(id) {
+  const c = $(id); const icon = $(id+'-icon');
+  if (!c) return;
+  c.classList.toggle('hidden');
+  icon.innerHTML = c.classList.contains('hidden') ? '&#9654;' : '&#9660;';
+}
+
+// --- Add Step (Core) ---
+function addStep(step, diagnostics) {
+  stepCount++;
+  const sn = step.step_number || stepCount;
+  const toolName = step.tool_name || 'unknown';
+  const thought = step.thought || '';
+  const args = step.tool_args || {};
+  const obs = step.observation || '';
+
+  const isError = toolName.includes('error') || toolName.startsWith('[');
+  const isFinish = toolName === 'finish_task';
+  const toolColor = isError ? 'rose' : isFinish ? 'emerald' : 'indigo';
+
+  const argsStr = Object.keys(args).length ? JSON.stringify(args, null, 2) : '{}';
+  const diag = diagnostics || {};
+  const diagStr = diag.generation_time_s != null
+    ? `${diag.generation_time_s.toFixed(2)}s | ${(diag.tokens_per_second||0).toFixed(1)} t/s | ${diag.token_count||0} tok`
+    : '';
+
+  const id = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+
+  const d = document.createElement('div');
+  d.className = `glass rounded-lg p-3 slide-up border-l-2 border-${toolColor}-500/40`;
+  d.id = id;
+  d.dataset.step = JSON.stringify(step);
+
+  // Header
+  let html = `<div class="flex items-center gap-2 mb-1.5 flex-wrap">
+    <span class="text-[9px] font-bold text-slate-600 bg-white/5 px-1.5 py-0.5 rounded">step ${sn}</span>
+    <span class="text-[11px] font-bold text-${toolColor}-400 mono">${toolName}</span>
+    ${diagStr ? `<span class="text-[9px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
+  </div>`;
+
+  // Thought (collapsible)
+  if (thought) {
+    const tid = id + '-t';
+    html += `<button onclick="toggleExp('${tid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-1">
+      <span id="${tid}-icon" class="text-[9px] transition-transform">&#9654;</span>
+      <span class="font-medium">thinking</span>
+    </button>
+    <div id="${tid}" class="hidden pl-3 mb-1.5 text-[10px] text-slate-400 italic leading-relaxed">${escapeHtml(thought)}</div>`;
+  }
+
+  // Args (collapsible)
+  if (argsStr !== '{}') {
+    const aid = id + '-a';
+    html += `<button onclick="toggleExp('${aid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-1">
+      <span id="${aid}-icon" class="text-[9px] transition-transform">&#9654;</span>
+      <span class="font-medium">arguments</span>
+    </button>
+    <div id="${aid}" class="hidden mb-1.5">
+      <pre class="bg-black/30 border border-white/5 rounded p-1.5 text-[9px] text-slate-500 mono overflow-x-auto">${argsStr}</pre>
+    </div>`;
+  }
+
+  // Observation (collapsible, default expanded)
+  if (obs) {
+    const oid = id + '-o';
+    const isLong = obs.length > 300;
+    html += `<button onclick="toggleExp('${oid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-1 mt-1">
+      <span id="${oid}-icon" class="text-[9px]">${isLong ? '&#9654;' : '&#9660;'}</span>
+      <span class="font-medium">result</span>
+    </button>
+    <div id="${oid}" class="${isLong ? 'hidden' : ''} mb-1.5">
+      <div class="text-[10px] text-slate-500 pl-1 border-l-2 border-${toolColor}-500/30 py-1 whitespace-pre-wrap leading-relaxed collapse-content ${isLong ? '' : 'expanded'}">${escapeHtml(obs)}</div>
+    </div>`;
+  }
+
+  // Actions row
+  html += `<div class="flex gap-1.5 items-center mt-2 pt-1.5 border-t border-white/5">
+    <button onclick="copyStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy step data">copy</button>
+    <button onclick="editStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit and resubmit">edit</button>
+    <button onclick="rerunStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Rerun this step">rerun</button>
+    <button onclick="deleteStep('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Delete this step">delete</button>
+    <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Branch from here">branch</button>
+  </div>`;
+
+  d.innerHTML = html;
+  conversation.appendChild(d);
+
+  // Remove placeholder if present
+  const placeholder = conversation.querySelector('.text-slate-600.italic');
+  if (placeholder && placeholder.textContent.includes('ready')) placeholder.remove();
+
+  scrollChat();
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// --- Step Actions ---
+function copyStep(id) {
+  const el = $(id);
+  if (!el) return;
+  const step = el.dataset.step;
+  navigator.clipboard.writeText(step).catch(() => {});
+  addMsg('step copied to clipboard', 'slate-500');
+}
+
+function editStep(id) {
+  const el = $(id);
+  if (!el) return;
+  const step = JSON.parse(el.dataset.step || '{}');
+  // Pre-fill task goal with the step's tool call
+  $('task-goal').value = `Tool: ${step.tool_name}\nArgs: ${JSON.stringify(step.tool_args || {})}\n\n# Edit and relaunch`;
+  addMsg('step loaded for editing — adjust and launch', 'indigo-400');
+}
+
+async function rerunStep(id) {
+  const el = $(id);
+  if (!el) return;
+  const step = JSON.parse(el.dataset.step || '{}');
+  // Submit as a direct instruction to the agent via talk
+  const msg = `Rerun step ${step.step_number}: ${step.tool_name} with args ${JSON.stringify(step.tool_args)}`;
+  try {
+    await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg, session_id:sessionId}) });
+    addMsg(`rerun requested for step ${step.step_number}`, 'indigo-400');
+  } catch(_) {}
+}
+
+async function deleteStep(id) {
+  const el = $(id);
+  if (!el) return;
+  try {
+    const step = JSON.parse(el.dataset.step || '{}');
+    const sn = step.step_number;
+    await fetch(`/api/task/history/${sn}?session_id=${sessionId}`, { method:'DELETE' });
+    el.remove();
+    addMsg(`step ${sn} deleted`, 'rose-400');
+  } catch(_) {}
+}
+
+async function branchHere(id) {
+  const el = $(id);
+  if (!el) return;
+  try {
+    await fetch('/api/task/branch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) });
+    addMsg('branched from this point', 'indigo-400');
+  } catch(_) {}
+}
+
+async function overrideStep(id) {
+  const el = $(id);
+  if (!el) return;
+  const step = JSON.parse(el.dataset.step || '{}');
+  const feedback = prompt('Override feedback for the agent:');
+  if (feedback === null) return;
+  try {
+    await fetch('/api/task/override', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:feedback, session_id:sessionId}) });
+    addMsg(`overseer overridden: ${feedback}`, 'indigo-400');
+  } catch(_) {}
+}
+
+// --- Overseer Review ---
 function addOverseerReview(msg) {
   const approved = msg.approved;
   const status = msg.status || (approved ? 'APPROVED' : 'REJECTED');
   const color = approved ? 'emerald' : 'rose';
+  const id = 'ov-' + Date.now();
+
   const d = document.createElement('div');
-  d.className = `slide-up p-2.5 bg-${color}-500/5 border border-${color}-500/10 rounded-lg`;
-  d.innerHTML = `
-    <div class="flex items-center justify-between mb-1.5">
-      <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-wider">${status}</span>
-      <span class="text-[9px] text-slate-600 font-mono">overseer</span>
+  d.className = `slide-up glass rounded-lg p-2.5 border-l-2 border-${color}-500/40`;
+
+  let html = `<div class="flex items-center justify-between mb-1">
+    <span class="text-[9px] font-bold text-${color}-400 uppercase tracking-wider">overseer: ${status}</span>
+    <div class="flex gap-1">
+      <button onclick="toggleExp('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">${'expand/collapse'}</button>
+      ${!approved ? `<button onclick="overrideStepForOverseer()" class="text-[9px] text-indigo-400 hover:text-indigo-300 transition">override</button>` : ''}
     </div>
-    <p class="text-[11px] text-slate-400">${msg.reasoning || ''}</p>
-    ${msg.feedback ? `<p class="text-[11px] text-slate-500 mt-1 italic">${msg.feedback}</p>` : ''}
-  `;
-  const empty = overseerLogs.querySelector('.text-slate-600');
-  if (empty) empty.remove();
-  overseerLogs.prepend(d);
+  </div>
+  <div class="collapse-content overseer-content" id="${id}">
+    <p class="text-[10px] text-slate-400">${escapeHtml(msg.reasoning || '')}</p>
+    ${msg.feedback ? `<p class="text-[10px] text-slate-500 mt-1 italic">${escapeHtml(msg.feedback)}</p>` : ''}
+  </div>`;
+
+  d.innerHTML = html;
+
+  // Insert before the last step or at the top of the conversation
+  const lastStep = conversation.querySelector('[id^="step-"]:last-of-type');
+  if (lastStep && lastStep.parentNode) {
+    lastStep.parentNode.insertBefore(d, lastStep.nextSibling);
+  } else {
+    conversation.appendChild(d);
+  }
 
   if (!approved) {
-    addLog(`overseer rejected: ${msg.reasoning || ''}`, 'rose-400');
+    addMsg(`overseer: ${status} — ${(msg.reasoning||'').slice(0,120)}`, 'rose-400');
   }
+  scrollChat();
 }
 
+async function overrideStepForOverseer() {
+  const feedback = prompt('Override feedback for the agent:');
+  if (feedback === null) return;
+  try {
+    await fetch('/api/task/override', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:feedback, session_id:sessionId}) });
+    addMsg(`overseer overridden: ${feedback}`, 'indigo-400');
+  } catch(_) {}
+}
+
+// --- Approval Banner ---
 function showApproval(msg) {
-  $('approval-thought').textContent = msg.thought || '';
-  $('approval-tool').textContent = msg.tool_name || '';
-  $('approval-args').textContent = JSON.stringify(msg.tool_args || {});
+  const isAsk = msg.tool_name === 'ask_user' || msg.type === 'ask_user';
+  $('approval-title').textContent = isAsk ? 'agent asks:' : 'approval required';
+  $('approval-thought').textContent = msg.thought || msg.tool_args?.question || '';
   $('feedback-input').value = '';
+  $('feedback-input').placeholder = isAsk ? 'your answer...' : 'feedback (optional)';
+  $('approve-btn').textContent = isAsk ? 'answer' : 'approve';
+  $('reject-btn').textContent = isAsk ? 'skip' : 'reject';
   approvalBanner.classList.remove('hidden');
-  setStatus('paused');
+  setTimeout(() => $('feedback-input')?.focus(), 100);
 }
 
 function hideApproval() {
   approvalBanner.classList.add('hidden');
-  if (isRunning) setStatus('running');
 }
 
-// --- Actions ---
+// --- Async Actions ---
 async function startTask() {
   const goal = $('task-goal').value.trim();
   if (!goal) { $('task-goal').focus(); return; }
@@ -437,232 +641,145 @@ async function startTask() {
   const mode = $('approval-mode').value;
   const steps = parseInt($('max-steps').value) || 15;
 
-  terminal.innerHTML = '';
-  overseerLogs.innerHTML = '<div class="text-slate-600 italic text-[11px] text-center mt-6">no reviews yet</div>';
   hideApproval();
   setStatus('running');
   isRunning = true;
-  telStep.textContent = `1 / ${steps}`;
-  telMode.textContent = mode;
-  telExecuted.textContent = '0';
   $('start-btn').disabled = true;
 
+  // Clear if first task
+  const placeholder = conversation.querySelector('.text-slate-600.italic');
+  if (placeholder) placeholder.remove();
+
+  addMsg(`launching: ${goal} (mode: ${mode}, steps: ${steps})`, 'indigo-400');
+
   try {
-    const r = await fetch('/api/task/start', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({goal, approval_mode: mode, max_steps: steps, session_id: sessionId})
-    });
-    if (!r.ok) {
-      const err = await r.json();
-      addLog(`failed: ${err.detail || 'request failed'}`, 'rose-400');
-      setStatus('error');
-      isRunning = false;
-    }
-  } catch (err) {
-    addLog(`network error: ${err.message}`, 'rose-400');
-    setStatus('error');
-    isRunning = false;
-  } finally {
-    $('start-btn').disabled = false;
-  }
+    const r = await fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal, approval_mode:mode, max_steps:steps, session_id:sessionId}) });
+    if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'request failed'}`, 'rose-400'); setStatus('error'); isRunning = false; }
+  } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); setStatus('error'); isRunning = false; }
+  $('start-btn').disabled = false;
 }
 
 async function submitApproval(approved) {
   const feedback = $('feedback-input').value.trim();
   hideApproval();
-  try {
-    await fetch('/api/task/approve', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({approved, feedback, session_id: sessionId})
-    });
-  } catch (_) {}
-}
-
-async function refreshState() {
-  try {
-    // Fetch both state and memory graph
-    const [sR, mR] = await Promise.all([
-      fetch('/api/state'),
-      fetch('/api/memory')
-    ]);
-    const sd = await sR.json();
-    const md = await mR.json();
-    memoryData = sd.memory || {};
-    rulesData = sd.rules || '';
-    neighborhoodData = md.neighborhood || null;
-    renderView();
-  } catch(_) {}
-}
-
-function renderView() {
-  if (currentTab === 'memory') {
-    stateViewer.textContent = JSON.stringify(memoryData, null, 2);
-  } else if (currentTab === 'rules') {
-    rulesViewer.textContent = rulesData;
-  } else if (currentTab === 'neighborhood') {
-    const nh = document.getElementById('neighborhood-viewer');
-    if (neighborhoodData) {
-      let txt = '';
-      const cur = neighborhoodData.current;
-      if (cur) txt += `► CURRENT: ${cur.title}\n  ${cur.summary}\n  id: ${cur.id}\n  access: ${cur.access_count}\n\n`;
-      if (neighborhoodData.children && neighborhoodData.children.length) {
-        txt += '── CHILDREN ──\n';
-        neighborhoodData.children.forEach(c => {
-          txt += `  ${c.has_deeper_detail ? '▼' : ' '} ${c.title}\n    ${c.summary.slice(0,100)}\n    id: ${c.id}\n\n`;
-        });
-      }
-      if (neighborhoodData.links && neighborhoodData.links.length) {
-        txt += '── LINKED ──\n';
-        neighborhoodData.links.forEach(l => {
-          txt += `  ↔ ${l.title}\n    ${l.summary.slice(0,100)}\n    id: ${l.id}\n\n`;
-        });
-      }
-      if (neighborhoodData.root) {
-        txt += `── ROOT ──\n  ${neighborhoodData.root.title}\n`;
-      }
-      nh.textContent = txt || '[empty graph]';
-    } else {
-      nh.textContent = '[no graph data]';
-    }
-  }
-}
-
-// Tab switching
-$('tab-memory').onclick = () => {
-  currentTab = 'memory';
-  ['tab-memory','tab-rules','tab-neighborhood'].forEach(id => {
-    const el = $(id);
-    if (id === 'tab-memory') {
-      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
-    } else {
-      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-    }
-  });
-  stateViewer.classList.remove('hidden');
-  rulesViewer.classList.add('hidden');
-  document.getElementById('neighborhood-viewer').classList.add('hidden');
-  renderView();
-};
-
-$('tab-rules').onclick = () => {
-  currentTab = 'rules';
-  ['tab-memory','tab-rules','tab-neighborhood'].forEach(id => {
-    const el = $(id);
-    if (id === 'tab-rules') {
-      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
-    } else {
-      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-    }
-  });
-  stateViewer.classList.add('hidden');
-  rulesViewer.classList.remove('hidden');
-  document.getElementById('neighborhood-viewer').classList.add('hidden');
-  renderView();
-};
-
-document.getElementById('tab-neighborhood').onclick = () => {
-  currentTab = 'neighborhood';
-  ['tab-memory','tab-rules','tab-neighborhood'].forEach(id => {
-    const el = $(id);
-    if (id === 'tab-neighborhood') {
-      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
-    } else {
-      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-    }
-  });
-  stateViewer.classList.add('hidden');
-  rulesViewer.classList.add('hidden');
-  document.getElementById('neighborhood-viewer').classList.remove('hidden');
-  renderView();
-};
-
-// --- Tab Switching ---
-$('tab-memory').onclick = () => {
-  currentTab = 'memory';
-  $('tab-memory').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
-  $('tab-rules').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-  stateViewer.classList.remove('hidden');
-  rulesViewer.classList.add('hidden');
-  renderView();
-};
-
-$('tab-rules').onclick = () => {
-  currentTab = 'rules';
-  $('tab-rules').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
-  $('tab-memory').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
-  stateViewer.classList.add('hidden');
-  rulesViewer.classList.remove('hidden');
-  renderView();
-};
-
-// --- Control buttons ---
-function enableControls(running) {
-  $('stop-btn').disabled = !running;
-  $('pause-btn').disabled = !running;
-  $('talk-btn').disabled = !running;
-  $('talk-input').disabled = !running;
+  try { await fetch('/api/task/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved, feedback:feedback||undefined, session_id:sessionId}) }); } catch(_) {}
 }
 
 async function stopTask() {
-  try {
-    await fetch('/api/task/stop', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({session_id: sessionId})
-    });
-    addLog('stop requested', 'rose-400');
-  } catch(_) {}
+  try { await fetch('/api/task/stop', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); addMsg('stop requested', 'rose-400'); } catch(_) {}
 }
 
 async function pauseTask() {
-  try {
-    await fetch('/api/task/stop-after-step', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({session_id: sessionId})
-    });
-    addLog('will pause after current step', 'amber-400');
-  } catch(_) {}
+  try { await fetch('/api/task/stop-after-step', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); addMsg('will pause after current step', 'amber-400'); } catch(_) {}
 }
 
 async function talkToAgent() {
-  const msg = $('talk-input').value.trim();
+  const msg = $('task-goal').value.trim();
   if (!msg) return;
   try {
-    await fetch('/api/task/talk', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg, session_id: sessionId})
-    });
-    addLog(`talk: "${msg}"`, 'sky-400');
-    $('talk-input').value = '';
+    await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg, session_id:sessionId}) });
+    addMsg(`talk: "${msg.slice(0,80)}"`, 'indigo-400');
+    $('task-goal').value = '';
   } catch(_) {}
 }
 
-$('talk-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') talkToAgent();
-});
+// --- Self-Dev Controls ---
+async function sdInit() {
+  try { const r = await fetch('/api/self-dev/init', {method:'POST'}); const d = await r.json(); $('sd-output').textContent = d.message||JSON.stringify(d); } catch(e) { $('sd-output').textContent = `Error: ${e.message}`; }
+}
+async function sdTest() {
+  try {
+    $('sd-output').textContent = 'Running tests...';
+    const r = await fetch('/api/self-dev/test', {method:'POST'}); const d = await r.json();
+    if (d.results) {
+      let txt = `Status: ${d.results.status}\nTests: ${d.results.tests_run} | +${d.results.passed}/-${d.results.failed}`;
+      if (d.results.errors?.length) txt += `\nErrors: ${d.results.errors.join('\n').slice(0,500)}`;
+      $('sd-output').textContent = txt;
+    } else { $('sd-output').textContent = JSON.stringify(d); }
+  } catch(e) { $('sd-output').textContent = `Error: ${e.message}`; }
+}
+async function sdDeploy() {
+  try { const r = await fetch('/api/self-dev/deploy', {method:'POST'}); const d = await r.json(); $('sd-output').textContent = d.message||JSON.stringify(d); } catch(e) { $('sd-output').textContent = `Error: ${e.message}`; }
+}
+async function sdStatus() {
+  try { const r = await fetch('/api/self-dev/status'); const d = await r.json(); $('sd-output').textContent = JSON.stringify(d, null, 2); } catch(e) { $('sd-output').textContent = `Error: ${e.message}`; }
+}
 
 // --- Event Listeners ---
 $('start-btn').onclick = startTask;
 $('approve-btn').onclick = () => submitApproval(true);
 $('reject-btn').onclick = () => submitApproval(false);
-$('refresh-state').onclick = refreshState;
-$('clear-terminal').onclick = () => { terminal.innerHTML = ''; };
 $('stop-btn').onclick = stopTask;
 $('pause-btn').onclick = pauseTask;
 $('talk-btn').onclick = talkToAgent;
+
+document.querySelectorAll('.nav-tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+
+$('notes-save-btn').onclick = saveNotes;
+$('notes-refresh-btn').onclick = loadNotes;
+$('mem-optimize-btn').onclick = async () => { try { await fetch('/api/memory/optimize',{method:'POST'}); loadMemoryGraph(); addMsg('memory optimization triggered','indigo-400'); } catch(_) {} };
+$('mem-refresh-btn').onclick = loadMemoryGraph;
+$('sd-init-btn').onclick = sdInit;
+$('sd-test-btn').onclick = sdTest;
+$('sd-deploy-btn').onclick = sdDeploy;
+$('sd-status-btn').onclick = sdStatus;
+$('settings-new-session').onclick = async () => {
+  const r = await fetch('/api/session/create', {method:'POST'}); const d = await r.json();
+  sessionId = d.session_id;
+  $('session-label').textContent = sessionId;
+  $('settings-session').textContent = sessionId;
+  $('info-session').textContent = sessionId;
+  const url = new URL(location); url.searchParams.set('session', sessionId); history.replaceState({},'',url);
+  addMsg(`new session: ${sessionId}`, 'indigo-400');
+};
+
+// Memory tab buttons
+$('tab-graph')?.addEventListener('click', () => {
+  $('memory-graph-full')?.classList.remove('hidden');
+  $('mem-rules')?.classList.add('hidden');
+  $('mem-neighbors')?.classList.add('hidden');
+  ['tab-graph','tab-rules','tab-neighbors'].forEach(id => {
+    const el = $(id); if (!el) return;
+    el.className = id==='tab-graph' ? 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400' : 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+  });
+});
+$('tab-rules')?.addEventListener('click', async () => {
+  $('memory-graph-full')?.classList.add('hidden');
+  $('mem-rules')?.classList.remove('hidden');
+  $('mem-neighbors')?.classList.add('hidden');
+  ['tab-graph','tab-rules','tab-neighbors'].forEach(id => {
+    const el = $(id); if (!el) return;
+    el.className = id==='tab-rules' ? 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400' : 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+  });
+  try { const r = await fetch('/api/state'); const d = await r.json(); $('mem-rules').textContent = d.rules || '[no rules]'; } catch(_) {}
+});
+$('tab-neighbors')?.addEventListener('click', async () => {
+  $('memory-graph-full')?.classList.add('hidden');
+  $('mem-rules')?.classList.add('hidden');
+  $('mem-neighbors')?.classList.remove('hidden');
+  ['tab-graph','tab-rules','tab-neighbors'].forEach(id => {
+    const el = $(id); if (!el) return;
+    el.className = id==='tab-neighbors' ? 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest border-b-2 border-indigo-400 text-indigo-400' : 'flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+  });
+  try { const r = await fetch('/api/memory'); const d = await r.json();
+    if (d.neighborhood) {
+      let txt = '';
+      ['current','children','links','root'].forEach(k => {
+        if (k === 'current' && d.neighborhood.current) txt += `CURRENT: ${d.neighborhood.current.title}\n  id: ${d.neighborhood.current.id}\n`;
+        else if (k === 'children' && d.neighborhood.children?.length) d.neighborhood.children.forEach(c => { txt += `CHILD: ${c.title}\n  id: ${c.id}\n`; });
+        else if (k === 'links' && d.neighborhood.links?.length) d.neighborhood.links.forEach(l => { txt += `LINK: ${l.title}\n  id: ${l.id}\n`; });
+        else if (k === 'root' && d.root) txt += `ROOT: ${d.root.title}\n`;
+      });
+      $('mem-neighbors').textContent = txt || '[empty]';
+    } else { $('mem-neighbors').textContent = '[no data]'; }
+  } catch(_) {}
+});
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.ctrlKey) { startTask(); return; }
   if (!approvalBanner.classList.contains('hidden')) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      submitApproval($('feedback-input').value.trim() ? false : true);
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitApproval(true); }
     if (e.key === 'Escape') { submitApproval(false); }
   }
 });
@@ -671,7 +788,9 @@ document.addEventListener('keydown', e => {
 (async () => {
   await initSession();
   connectWS();
-  refreshState();
+  switchView('console');
+  // Pre-populate notes if empty
+  loadNotes();
 })();
 </script>
 </body>

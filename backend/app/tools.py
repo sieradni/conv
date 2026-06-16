@@ -348,6 +348,38 @@ New Rules Applied:
             return f"Detail for node {node_id[:8]}:\n{detail}"
         return f"Node '{node_id}' not found."
 
+    # ── Self-Development Tools ────────────────────────────────────
+
+    def propose_change(self, file_path: str, content: str) -> str:
+        """Propose a change to the framework's own codebase (in shadow)."""
+        from app.self_dev import get_shadow_sandbox
+        sandbox = get_shadow_sandbox()
+        if sandbox.status == "IDLE":
+            sandbox.create_shadow()
+        return sandbox.apply_change(file_path, content)
+
+    def run_self_test(self) -> str:
+        """Run the framework's test suite inside the shadow sandbox."""
+        from app.self_dev import get_shadow_sandbox
+        sandbox = get_shadow_sandbox()
+        results = sandbox.run_tests()
+        status = results.get("status", "UNKNOWN")
+        output = results.get("output", "")[:1000]
+        return f"Test status: {status}\n{output}"
+
+    def deploy_change(self) -> str:
+        """Deploy approved shadow changes to the live framework."""
+        from app.self_dev import get_shadow_sandbox
+        sandbox = get_shadow_sandbox()
+        return sandbox.deploy_to_live()
+
+    def read_user_notes(self) -> str:
+        """Read the user's persistent notes scratchpad."""
+        notes_path = Path(__file__).parent / "user_notes.md"
+        if notes_path.exists():
+            return notes_path.read_text(encoding="utf-8")
+        return "# User Notes\n\nNo notes yet."
+
     def create_memory(
         self, title: str, summary: str, detail: str = "",
         parent_id: str = "", link_to_ids: str = ""

@@ -3,13 +3,22 @@
 ## ⚡ 30-Second Setup
 
 ```bash
+cd /home/sieradni/conv/agent-framework
+./run.sh
+```
+
+Or manually:
+
+```bash
 cd /home/sieradni/conv/agent-framework/backend
 source venv/bin/activate
 pip install -r requirements.txt
-python test_loop.py  # Verify everything works
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-**Expected:** Factorial task completed in 4 steps in ~20 seconds.
+Then open **http://localhost:8000** in a browser.
+
+**Expected:** Web UI loads. Configure a task, click launch, watch agent execute in real-time.
 
 ---
 

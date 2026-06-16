@@ -87,6 +87,9 @@ class AgentOrchestrator:
             Final AgentState with execution history
         """
         while True:
+            # Initialize diagnostics for this step
+            diagnostics = {"generation_time_s": 0, "tokens_per_second": 0, "token_count": 0}
+
             # Check termination conditions
             if self.state.exceeded_max_steps():
                 self.state.mark_failed(f"Exceeded maximum steps ({self.state.max_steps})")
@@ -172,7 +175,8 @@ class AgentOrchestrator:
                     "type": "step_start",
                     "session_id": self.session_id,
                     "step_number": self.state.current_step,
-                    "max_steps": self.state.max_steps
+                    "max_steps": self.state.max_steps,
+                    "diagnostics": diagnostics,
                 })
 
             # Call LM Studio
@@ -185,11 +189,13 @@ class AgentOrchestrator:
                     "status": "calling"
                 })
             try:
+                call_start = time.time()
                 response = await self.lm_client.chat_completion(
                     model=self.model_name,
                     messages=messages,
                     temperature=0.1
                 )
+                call_duration = time.time() - call_start
             except Exception as e:
                 self.state.mark_failed(f"LM Studio API error: {str(e)}")
                 print(f"[-] LM Studio error: {str(e)}")
@@ -201,13 +207,23 @@ class AgentOrchestrator:
                     })
                 break
 
+            # Compute diagnostics
+            diagnostics = {"generation_time_s": call_duration, "tokens_per_second": 0, "token_count": 0}
+            if response and 'usage' in response:
+                usage = response['usage']
+                total_tokens = usage.get('total_tokens', 0) or usage.get('completion_tokens', 0) or 0
+                diagnostics['token_count'] = total_tokens
+                if call_duration > 0 and total_tokens > 0:
+                    diagnostics['tokens_per_second'] = round(total_tokens / call_duration, 1)
+
             # Broadcast LLM response received
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "llm_response",
                     "session_id": self.session_id,
                     "step_number": self.state.current_step,
-                    "status": "received"
+                    "status": "received",
+                    "diagnostics": diagnostics,
                 })
             
             # Parse response
@@ -277,12 +293,12 @@ class AgentOrchestrator:
             print(f"[*] Args: {tool_args}")
             
             # Check if this tool requires approval
-            requires_approval = tool_name in ["write_file", "run_command", "finish_task"]
+            requires_approval = tool_name in ["write_file", "run_command", "finish_task", "ask_user"]
             
             # For finish_task, we ALWAYS want verification if possible
             should_run_gate = False
             current_mode = self.state.approval_mode
-            
+
             if requires_approval:
                 if current_mode != "AUTO_APPROVE":
                     should_run_gate = True
@@ -290,19 +306,23 @@ class AgentOrchestrator:
                     # Force Overseer check even in AUTO_APPROVE for finish_task
                     should_run_gate = True
                     current_mode = "CHECK_WITH_OVERSEER"
+                elif tool_name == "ask_user":
+                    # ask_user always requires user input
+                    should_run_gate = True
+                    current_mode = "WAIT_FOR_USER"
 
             # Apply approval gate if required
             if should_run_gate:
                 approval_result = await self._apply_approval_gate(thought, tool_name, tool_args, mode_override=current_mode)
                 if not approval_result["approved"]:
-                    # Rejection: feed back the feedback to the Actor
                     observation = f"Action REJECTED by {approval_result['source']}: {approval_result['feedback']}"
                     print(f"[!] {observation}")
                 else:
-                    # Approved: continue with execution
-                    observation = await self._execute_tool(tool_name, tool_args)
+                    if tool_name == "ask_user":
+                        observation = f"User answered: {approval_result['feedback']}"
+                    else:
+                        observation = await self._execute_tool(tool_name, tool_args)
             else:
-                # Auto-approved or safe tool: execute directly
                 observation = await self._execute_tool(tool_name, tool_args)
             
             # Log step
@@ -315,12 +335,13 @@ class AgentOrchestrator:
             )
             self.state.add_step(step_log)
             
-            # Broadcast update to UI
+            # Broadcast update to UI with diagnostics
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "step_update",
                     "session_id": self.session_id,
-                    "step": step_log.dict()
+                    "step": step_log.dict(),
+                    "diagnostics": diagnostics,
                 })
             
             # Check if task is finished
@@ -408,9 +429,30 @@ class AgentOrchestrator:
                     parent_id=tool_args.get("parent_id", ""),
                     link_to_ids=tool_args.get("link_to_ids", ""),
                 )
-            
+
+            # Self-Development Tools
+            elif tool_name == "propose_change":
+                return self.executor.propose_change(
+                    file_path=tool_args.get("file_path", ""),
+                    content=tool_args.get("content", ""),
+                )
+
+            elif tool_name == "run_self_test":
+                return self.executor.run_self_test()
+
+            elif tool_name == "deploy_change":
+                return self.executor.deploy_change()
+
+            # User Notes Tool
+            elif tool_name == "read_user_notes":
+                return self.executor.read_user_notes()
+
+            # Ask User (pauses for user input — handled by approval gate)
+            elif tool_name == "ask_user":
+                return f"[ASK_USER] {tool_args.get('question', '')}"
+
             else:
-                return f"Error: Unknown tool '{tool_name}'. Available tools: write_file, read_file, run_command, finish_task, navigate_up, navigate_down, return_to_base, read_detail, create_memory"
+                return f"Error: Unknown tool '{tool_name}'. Available tools: write_file, read_file, run_command, finish_task, navigate_up, navigate_down, return_to_base, read_detail, create_memory, propose_change, run_self_test, deploy_change, read_user_notes, ask_user"
         
         except Exception as e:
             return f"Error executing {tool_name}: {str(e)}"
@@ -504,10 +546,14 @@ class AgentOrchestrator:
             }
         
         elif mode == "WAIT_FOR_USER":
+            # For ask_user, we use a specific type so frontend can display differently
+            is_ask_user = tool_name == "ask_user"
+            broadcast_type = "ask_user" if is_ask_user else "awaiting_user_approval"
+
             # 1. Broadcast the pending action to the WebSocket if available
             if self.ui_manager:
                 await self.ui_manager.broadcast({
-                    "type": "awaiting_user_approval",
+                    "type": broadcast_type,
                     "session_id": self.session_id,
                     "tool_name": tool_name,
                     "tool_args": tool_args,
@@ -516,7 +562,7 @@ class AgentOrchestrator:
 
             # 2. Await the response from the FastAPI Queue or fallback to CLI
             if self.user_queue:
-                print("[*] Pausing and waiting for user approval on Web UI...")
+                print(f"[*] Pausing and waiting for user {'answer' if is_ask_user else 'approval'} on Web UI...")
                 user_response = await self.user_queue.get()
                 
                 # Broadcast the decision
@@ -528,6 +574,14 @@ class AgentOrchestrator:
                         "feedback": user_response.get("feedback", "")
                     })
                 
+                if is_ask_user:
+                    # For ask_user, the feedback IS the answer
+                    return {
+                        "approved": True,
+                        "source": "USER_UI",
+                        "feedback": user_response.get("feedback") or "[User provided no answer]"
+                    }
+                
                 if not user_response["approved"]:
                     return {
                         "approved": False,
@@ -538,22 +592,28 @@ class AgentOrchestrator:
                     return {"approved": True, "source": "USER_UI", "feedback": ""}
             else:
                 # Fallback to CLI if no queue provided
-                print(f"\n[!] Approval Required (CLI Fallback)!")
-                print(f"    Actor wants to execute: {tool_name}")
-                print(f"    Reasoning: {actor_thought}")
-                print(f"    Arguments: {json.dumps(tool_args, indent=2)}")
-                print(f"\n    Type 'approve' to allow, or provide feedback: ", end="")
-                
-                user_input = input().strip().lower()
-                
-                if user_input == "approve":
-                    return {"approved": True, "source": "USER_CLI", "feedback": ""}
+                label = "Question" if is_ask_user else "Approval Required"
+                print(f"\n[!] {label} (CLI Fallback)!")
+                print(f"    Actor: {tool_name}")
+                print(f"    Details: {actor_thought}")
+                if is_ask_user:
+                    question = tool_args.get("question", "")
+                    print(f"    Question: {question}")
+                    print(f"\n    Type your answer: ", end="")
+                    user_input = input().strip()
+                    return {"approved": True, "source": "USER_CLI", "feedback": user_input if user_input else "[User provided no answer]"}
                 else:
-                    return {
-                        "approved": False,
-                        "source": "USER_CLI",
-                        "feedback": user_input if user_input else "User rejected the action"
-                    }
+                    print(f"    Arguments: {json.dumps(tool_args, indent=2)}")
+                    print(f"\n    Type 'approve' to allow, or provide feedback: ", end="")
+                    user_input = input().strip().lower()
+                    if user_input == "approve":
+                        return {"approved": True, "source": "USER_CLI", "feedback": ""}
+                    else:
+                        return {
+                            "approved": False,
+                            "source": "USER_CLI",
+                            "feedback": user_input if user_input else "User rejected the action"
+                        }
         
         else:
             # Unknown approval mode, default to rejection

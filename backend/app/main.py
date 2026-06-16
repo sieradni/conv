@@ -1,10 +1,12 @@
 import asyncio
 import json
 import os
+import time
 import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 
@@ -13,6 +15,7 @@ from app.state import AgentState
 from app.session import registry, manager
 from app.memory_graph import get_memory_graph
 from app.sleep_flow import sleep_loop
+from app.self_dev import get_shadow_sandbox
 
 logging.basicConfig(level=logging.INFO, format="[%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("main")
@@ -54,6 +57,23 @@ class DirectTalkPayload(BaseModel):
 
 class BranchPayload(BaseModel):
     session_id: str
+
+
+class SelfDevProposePayload(BaseModel):
+    file_path: str
+    content: str
+    session_id: Optional[str] = None
+
+
+class SelfDevDeployPayload(BaseModel):
+    session_id: Optional[str] = None
+
+
+class DiagnosticsPayload(BaseModel):
+    generation_time_s: float = 0
+    tokens_per_second: float = 0
+    token_count: int = 0
+    session_id: Optional[str] = None
 
 
 # ── Background task runner ────────────────────────────────────────
@@ -388,6 +408,119 @@ async def optimize_memory():
     from app.sleep_flow import run_sleep_cycle
     await run_sleep_cycle()
     return {"status": "optimized"}
+
+
+# ── Self-Development Pipeline ──────────────────────────────────────
+
+shadow_sandbox = get_shadow_sandbox()
+
+
+@app.post("/api/self-dev/init")
+async def self_dev_init():
+    """Create a shadow copy of the framework for safe self-modification."""
+    try:
+        msg = shadow_sandbox.create_shadow()
+        return {"status": "ok", "message": msg}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/self-dev/propose")
+async def self_dev_propose(payload: SelfDevProposePayload):
+    """Apply a proposed change to the shadow copy."""
+    try:
+        if shadow_sandbox.status == "IDLE":
+            shadow_sandbox.create_shadow()
+        msg = shadow_sandbox.apply_change(payload.file_path, payload.content)
+        return {"status": "ok", "message": msg}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/self-dev/test")
+async def self_dev_test():
+    """Run the test suite inside the shadow sandbox."""
+    try:
+        if shadow_sandbox.status == "IDLE":
+            return {"status": "error", "message": "No shadow initialized. Call /api/self-dev/init first."}
+        results = await asyncio.to_thread(shadow_sandbox.run_tests)
+        return {"status": "ok", "results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/self-dev/deploy")
+async def self_dev_deploy():
+    """Deploy approved shadow changes to the live codebase."""
+    try:
+        if shadow_sandbox.status == "IDLE":
+            return {"status": "error", "message": "No shadow initialized."}
+        msg = shadow_sandbox.deploy_to_live()
+        return {"status": "ok", "message": msg}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/self-dev/status")
+async def self_dev_status():
+    """Get the status of the self-development pipeline."""
+    return shadow_sandbox.status_report()
+
+
+# ── Notes (User Scratchpad) ────────────────────────────────────────
+
+NOTES_PATH = Path(__file__).parent / "user_notes.md"
+
+
+@app.get("/api/notes")
+async def get_notes():
+    """Return the user's persistent notes."""
+    if NOTES_PATH.exists():
+        content = NOTES_PATH.read_text(encoding="utf-8")
+    else:
+        content = "# User Notes\n\nWrite your notes here..."
+        NOTES_PATH.write_text(content, encoding="utf-8")
+    return {"content": content, "path": str(NOTES_PATH)}
+
+
+@app.put("/api/notes")
+async def update_notes(payload: DirectTalkPayload):
+    """Update the user's persistent notes."""
+    NOTES_PATH.write_text(payload.message, encoding="utf-8")
+    return {"status": "updated"}
+
+
+# ── Diagnostics Metrics ───────────────────────────────────────────
+
+DIAG_PATH = Path(__file__).parent / "diagnostics.json"
+
+
+@app.get("/api/diagnostics")
+async def get_diagnostics():
+    """Return recent diagnostics metrics."""
+    if DIAG_PATH.exists():
+        data = json.loads(DIAG_PATH.read_text(encoding="utf-8"))
+    else:
+        data = {"history": []}
+    return data
+
+
+@app.post("/api/diagnostics/record")
+async def record_diagnostics(payload: DiagnosticsPayload):
+    """Record a diagnostics data point."""
+    data = {"generation_time_s": 0, "tokens_per_second": 0, "token_count": 0}
+    if DIAG_PATH.exists():
+        data = json.loads(DIAG_PATH.read_text(encoding="utf-8"))
+    entry = {
+        "timestamp": time.time(),
+        "generation_time_s": payload.generation_time_s,
+        "tokens_per_second": payload.tokens_per_second,
+        "token_count": payload.token_count,
+    }
+    data.setdefault("history", []).append(entry)
+    data["history"] = data["history"][-100:]
+    DIAG_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return {"status": "recorded"}
 
 
 # ── Startup / Shutdown ────────────────────────────────────────────

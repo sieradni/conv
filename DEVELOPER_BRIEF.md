@@ -278,65 +278,145 @@ print(result.state.status)
 | 1 | Env setup, LM client, sandbox | ✅ Complete |
 | 2 | Agent loop, tool execution | ✅ Complete |
 | 3 | Memory system, context pruning | ✅ Complete |
-| 4 | FastAPI endpoints, task queue | 🔄 **Ready to Start** |
-| 5 | Web UI | 📋 Planned |
+| 4 | FastAPI endpoints, session management, web UI | ✅ Complete |
+| 5 | HSWM memory graph, sleep flow | ✅ Complete |
+| 6 | Self-Development Pipeline, frontend UX polish | ✅ Complete |
 
 ---
 
-## 🚀 Phase 4: Next Steps
+## 🚀 Running the Server
 
-**Goal:** HTTP API for task submission and async execution
+### Quick Start (one command)
 
-**Tasks:**
-1. Create `backend/app/api.py` with FastAPI app
-2. Endpoints:
-   - `POST /tasks` - Submit new task
-   - `GET /tasks/{task_id}` - Query status
-   - `GET /tasks/{task_id}/result` - Get result
-3. In-memory task queue with worker pool
-4. Task persistence (SQLite)
-
-**Architecture:**
-```
-FastAPI App
-   ↓
-Task Queue (in-memory or Redis)
-   ↓
-Worker Pool (3-5 concurrent orchestrators)
-   ↓
-Existing orchestrator.py (no changes needed)
+```bash
+cd /home/sieradni/conv/agent-framework
+./run.sh
 ```
 
+This checks prerequisites, activates the venv, installs deps, and starts uvicorn on `http://localhost:8000`.
+
+### Manual Start
+
+```bash
+cd /home/sieradni/conv/agent-framework/backend
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Prerequisites
+
+1. **LM Studio** running on `http://localhost:1234` with a model loaded
+2. **Python 3.10+** with virtual environment
+3. Open `http://localhost:8000` in a browser
+
 ---
 
-## 📚 Documentation
+## 🧭 Application Sections
 
-**High-Level:**
-- `PHASE_3_REPORT.md` - Detailed Phase 3 implementation
-- `PHASE_3_DELIVERY_SUMMARY.md` - Summary of delivered features
-- `EXECUTION_LOG.md` - Historical execution logs
+### Console View (default)
+- **Configure tab**: Set task goal, approval mode, max steps
+- **Diagnostics dashboard**: Real-time gen time, tokens/s, token count
+- **Terminal**: Live agent output with copy buttons on each step
+- **Overseer panel**: Review logs from the Overseer agent
+- **State viewer**: HSWM graph, rules, neighborhood tabs
+- **Controls**: Stop, pause-after-step, direct messaging to agent
+- **Approval banner**: Appears when agent needs user input (WAIT_FOR_USER mode or ask_user tool)
 
-**Code Comments:**
-- All classes have docstrings
-- Complex methods have inline explanations
-- See orchestrator.py for run_loop logic
+### Memory View
+- Full HSWM memory graph display
+- Neighborhood viewer
+- Run optimization (sleep flow) button
 
-**Tests:**
-- test_loop.py shows Phase 2 working
-- test_memory_loop.py shows Phase 3 working
+### Notes View
+- Persistent user scratchpad (markdown)
+- Agent can read notes via `read_user_notes` tool
+- Auto-saves to `backend/app/user_notes.md`
+
+### Settings View
+- Self-Development Pipeline controls
+- Session management
 
 ---
 
-## 🔍 Important Files for Quick Reference
+## 🔄 Agent Ask User Flow
 
-| File | Purpose | Lines |
-|------|---------|-------|
-| orchestrator.py | Main loop & memory compilation | ~400 |
-| tools.py | All tool implementations | ~300 |
-| sandbox.py | File system isolation | ~100 |
-| state.py | State schemas | ~50 |
-| lm_client.py | LM Studio client | ~60 |
-| prompts.py | System prompts | ~100 |
+The agent can stop and ask the user a question using the `ask_user` tool:
+
+```
+Agent asks: "What port should I use for the server?"
+├─ User types answer in approval banner
+├─ Answer returned as observation
+└─ Agent continues with the answer
+```
+
+This works in ALL approval modes (AUTO_APPROVE, CHECK_WITH_OVERSEER, WAIT_FOR_USER).
+
+---
+
+## 🛠 Self-Development Pipeline
+
+The agent can safely modify its own codebase through a **shadow sandbox**:
+
+1. **Init shadow**: Copies the framework to a temp directory
+2. **Propose change**: Applies a file modification in the shadow
+3. **Run tests**: Executes `test_loop.py` and `test_sandbox.py` inside the shadow
+4. **Deploy**: Copies approved changes to the live codebase
+
+Agent tools: `propose_change`, `run_self_test`, `deploy_change`
+Settings panel buttons: Init, Run Tests, Deploy, Status
+
+---
+
+## 🔑 Key API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/session/create` | Create or get a session |
+| POST | `/api/task/start` | Start a new task |
+| POST | `/api/task/approve` | Submit user approval/answer |
+| POST | `/api/task/stop` | Abort current task |
+| POST | `/api/task/talk` | Send direct message to agent |
+| POST | `/api/task/override` | Override Overseer rejection |
+| POST | `/api/self-dev/init` | Init shadow sandbox |
+| POST | `/api/self-dev/propose` | Propose change in shadow |
+| POST | `/api/self-dev/test` | Run tests in shadow |
+| POST | `/api/self-dev/deploy` | Deploy shadow to live |
+| GET | `/api/notes` | Read user notes |
+| PUT | `/api/notes` | Update user notes |
+| GET | `/api/memory` | Get HSWM graph state |
+| POST | `/api/memory/optimize` | Run sleep flow optimization |
+| GET | `/api/diagnostics` | Get diagnostics history |
+| WS | `/ws/{session_id}` | Session-scoped WebSocket |
+
+---
+
+## 📁 File Map
+
+**Core:**
+- `backend/app/main.py` — FastAPI server, all endpoints
+- `backend/app/orchestrator.py` — Agent execution loop
+- `backend/app/tools.py` — Tool implementations
+- `backend/app/sandbox.py` — File system isolation
+- `backend/app/session.py` — Multi-session management
+- `backend/app/state.py` — Data schemas
+
+**Memory:**
+- `backend/app/memory_graph.py` — HSWM graph store
+- `backend/app/sleep_flow.py` — Offline memory optimization
+- `backend/app/working_memory.json` — Current memory graph state
+- `backend/app/memory_rules.md` — Memory guidelines
+
+**AI:**
+- `backend/app/lm_client.py` — LM Studio client
+- `backend/app/overseer.py` — Quality assurance agent
+- `backend/app/prompts.py` — Agent system prompts
+
+**Self-Development:**
+- `backend/app/self_dev.py` — Shadow sandbox and hot-swap
+
+**Frontend:**
+- `frontend/index.html` — Single HTML file SPA (Tailwind CSS)
 
 ---
 
@@ -355,9 +435,15 @@ Task: "Create a hello world script and run it"
   Args: {"command": "python hello.py"}
   Observation: Hello, World!
 
-[Step 3] Agent finishes
+[Step 3] Agent asks before finishing
+  Tool: ask_user
+  Args: {"question": "Should I add error handling?"}
+  [User answers "yes"]
+  Observation: User answered: yes
+
+[Step 4] Agent improves and finishes
   Tool: finish_task
-  Args: {"summary": "Created and executed hello.py successfully"}
+  Args: {"summary": "Created hello.py with error handling"}
   Status: COMPLETED ✅
 ```
 
@@ -367,14 +453,12 @@ Task: "Create a hello world script and run it"
 
 Before continuing development:
 
-- [ ] Clone/pull latest code from agent-framework/
-- [ ] Activate venv: `source backend/venv/bin/activate`
-- [ ] Verify LM Studio running: `curl http://localhost:1234/v1/models`
-- [ ] Run Phase 2 test: `python backend/test_loop.py` (should pass in ~30s)
-- [ ] Run Phase 3 test: `python backend/test_memory_loop.py` (should show write_memory working)
-- [ ] Review PHASE_3_REPORT.md for architecture details
-- [ ] Check orchestrator.py for memory injection logic
-- [ ] Plan Phase 4 API structure
+- [ ] Run `./run.sh` to start the server
+- [ ] Open `http://localhost:8000` in a browser
+- [ ] Run `python backend/test_loop.py` to verify agent loop
+- [ ] Check settings panel for self-dev pipeline controls
+- [ ] Review `backend/app/self_dev.py` for shadow sandbox API
+- [ ] Review `frontend/index.html` for complete UI
 
 ---
 
