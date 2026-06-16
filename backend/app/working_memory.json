@@ -1,0 +1,13 @@
+{
+  "project_overview": "Bookstore Stock Checker - A simple app to track book inventory",
+  "facts_discovered": {},
+  "active_decisions": [
+    "Using a dict to map book titles to quantities"
+  ],
+  "todo_list": [
+    "Implement check_stock(title) returning availability message",
+    "Write unit tests in tests/test_code.py",
+    "Verify all tests pass"
+  ],
+  "completed_tasks": []
+}
