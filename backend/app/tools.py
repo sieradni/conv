@@ -310,6 +310,64 @@ New Rules Applied:
         # async execution of the OverseerAgent
         return f"[Asking Overseer: {question[:50]}...]"
 
+    # ── HSWM Navigation Tools ────────────────────────────────────
+
+    def navigate_up(self) -> str:
+        """Move the memory pointer to the parent node."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+        node = graph.navigate_up()
+        if node:
+            return f"✓ Moved up to [{node.title}]: {node.summary[:200]}"
+        return "Already at root — no parent."
+
+    def navigate_down(self, node_id: str) -> str:
+        """Move the memory pointer to a child node by id."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+        node = graph.navigate_down(node_id)
+        if node:
+            return f"✓ Moved down to [{node.title}]: {node.summary[:200]}"
+        return f"Node '{node_id}' is not a child of the current node."
+
+    def return_to_base(self) -> str:
+        """Reset the memory pointer to the root node."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+        node = graph.return_to_base()
+        if node:
+            return f"✓ Returned to root: [{node.title}]"
+        return "No root found."
+
+    def read_detail(self, node_id: str) -> str:
+        """Read the full detail block of a memory node (increments access count)."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+        detail = graph.read_detail(node_id)
+        if detail is not None:
+            return f"Detail for node {node_id[:8]}:\n{detail}"
+        return f"Node '{node_id}' not found."
+
+    def create_memory(
+        self, title: str, summary: str, detail: str = "",
+        parent_id: str = "", link_to_ids: str = ""
+    ) -> str:
+        """Create a new memory node in the graph."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+
+        pid = parent_id if parent_id else graph.current_node_id
+        lids = [x.strip() for x in link_to_ids.split(",") if x.strip()] if link_to_ids else None
+
+        node = graph.create_memory(
+            title=title,
+            summary=summary,
+            detail=detail,
+            parent_id=pid,
+            link_to_ids=lids,
+        )
+        return f"✓ Created memory [{node.id[:8]}] '{title}' under {pid[:8] if pid else 'root'}"
+
 
 
 # Global tool executor instance (will be initialized in orchestrator)

@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import logging
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -10,6 +10,9 @@ from typing import List, Dict, Any, Optional
 
 from app.orchestrator import AgentOrchestrator
 from app.state import AgentState
+from app.session import registry, manager
+from app.memory_graph import get_memory_graph
+from app.sleep_flow import sleep_loop
 
 logging.basicConfig(level=logging.INFO, format="[%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("main")
@@ -24,86 +27,124 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-orchestrator_instance: Optional[AgentOrchestrator] = None
-user_response_queue = asyncio.Queue()
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        logger.info(f"WS connected. Total: {len(self.active_connections)}")
-
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-            logger.info(f"WS disconnected. Total: {len(self.active_connections)}")
-
-    async def broadcast(self, message: dict):
-        dead = []
-        for connection in self.active_connections:
-            try:
-                await connection.send_json(message)
-            except Exception as e:
-                dead.append(connection)
-        for conn in dead:
-            self.disconnect(conn)
-
-manager = ConnectionManager()
+# ── Pydantic models ──────────────────────────────────────────────
 
 class TaskPayload(BaseModel):
     goal: str
     approval_mode: str = "WAIT_FOR_USER"
     max_steps: int = 15
+    session_id: Optional[str] = None
+
 
 class UserApprovalPayload(BaseModel):
     approved: bool
     feedback: Optional[str] = None
+    session_id: Optional[str] = None
 
-async def run_agent_task(payload: TaskPayload):
-    global orchestrator_instance
 
-    logger.info(f"Starting background task: {payload.goal}")
+class CreateSessionPayload(BaseModel):
+    session_id: Optional[str] = None
 
-    orchestrator_instance = AgentOrchestrator(
+
+class DirectTalkPayload(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+
+class BranchPayload(BaseModel):
+    session_id: str
+
+
+# ── Background task runner ────────────────────────────────────────
+
+async def run_agent_task(payload: TaskPayload, session_id: str):
+    session = registry.get(session_id)
+    if not session:
+        logger.error(f"Session not found: {session_id}")
+        return
+
+    session.status = "RUNNING"
+    session.goal = payload.goal
+    session.approval_mode = payload.approval_mode
+    session.max_steps = payload.max_steps
+
+    logger.info(f"[{session_id}] Starting task: {payload.goal}")
+
+    orch = AgentOrchestrator(
         task_goal=payload.goal,
         approval_mode=payload.approval_mode,
         max_steps=payload.max_steps,
-        sandbox_dir=os.path.join(os.getcwd(), "sandbox_ui")
+        sandbox_dir=os.path.join(os.getcwd(), "sandbox_ui"),
+        session_id=session_id,
     )
 
-    orchestrator_instance.ui_manager = manager
-    orchestrator_instance.user_queue = user_response_queue
+    orch.ui_manager = manager
+    orch.user_queue = session.user_response_queue
+    orch.session_id = session_id
+    session.orchestrator = orch
 
-    await orchestrator_instance.initialize()
+    await orch.initialize()
 
     await manager.broadcast({
         "type": "status_update",
+        "session_id": session_id,
         "status": "RUNNING",
         "goal": payload.goal,
         "approval_mode": payload.approval_mode,
-        "max_steps": payload.max_steps
+        "max_steps": payload.max_steps,
     })
 
     try:
-        final_state = await orchestrator_instance.run_loop()
+        final_state = await orch.run_loop()
+        session.status = final_state.status
         await manager.broadcast({
             "type": "task_complete",
+            "session_id": session_id,
             "status": final_state.status,
-            "steps": len(final_state.history)
+            "steps": len(final_state.history),
         })
     except Exception as e:
-        logger.error(f"Orchestrator error: {e}")
+        logger.error(f"[{session_id}] Orchestrator error: {e}")
+        session.status = "FAILED"
         await manager.broadcast({
             "type": "error",
-            "message": str(e)
+            "session_id": session_id,
+            "message": str(e),
         })
+
+
+# ── Health ────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Session management ────────────────────────────────────────────
+
+@app.post("/api/session/create")
+async def create_session(payload: CreateSessionPayload = None):
+    if payload and payload.session_id:
+        existing = registry.get(payload.session_id)
+        if existing:
+            return {"session_id": payload.session_id, "created": False}
+    session = registry.create()
+    return {"session_id": session.session_id, "created": True}
+
+
+@app.get("/api/sessions")
+async def list_sessions():
+    return {"sessions": registry.list()}
+
+
+@app.delete("/api/session/{session_id}")
+async def delete_session(session_id: str):
+    registry.delete(session_id)
+    return {"status": "deleted"}
+
+
+# ── Task endpoints ────────────────────────────────────────────────
 
 @app.post("/api/task/start")
 async def start_task(payload: TaskPayload, background_tasks: BackgroundTasks):
@@ -111,20 +152,157 @@ async def start_task(payload: TaskPayload, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="max_steps must be between 1 and 100")
     if payload.approval_mode not in ("AUTO_APPROVE", "CHECK_WITH_OVERSEER", "WAIT_FOR_USER"):
         raise HTTPException(status_code=400, detail="Invalid approval_mode")
-    background_tasks.add_task(run_agent_task, payload)
-    return {"status": "started", "goal": payload.goal}
+
+    session_id = payload.session_id
+    if not session_id or not registry.get(session_id):
+        session = registry.create()
+        session_id = session.session_id
+    else:
+        session = registry.get(session_id)
+
+    background_tasks.add_task(run_agent_task, payload, session_id)
+    return {"status": "started", "session_id": session_id, "goal": payload.goal}
+
 
 @app.post("/api/task/approve")
 async def submit_approval(payload: UserApprovalPayload):
-    logger.info(f"User approval: approved={payload.approved}, feedback={payload.feedback}")
-    await user_response_queue.put({
+    session_id = payload.session_id or "default"
+    session = registry.get(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    logger.info(f"[{session_id}] User approval: approved={payload.approved}, feedback={payload.feedback}")
+    await session.user_response_queue.put({
         "approved": payload.approved,
-        "feedback": payload.feedback
+        "feedback": payload.feedback,
     })
-    return {"status": "received"}
+    return {"status": "received", "session_id": session_id}
+
+
+# ── Conversational Control ────────────────────────────────────────
+
+@app.post("/api/task/stop")
+async def stop_task(payload: CreateSessionPayload = None):
+    """Immediately abort the current task execution."""
+    sid = payload.session_id if payload and payload.session_id else "default"
+    session = registry.get(sid)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {sid} not found")
+    session.stop_requested = True
+    session.status = "STOPPED"
+    await manager.broadcast({
+        "type": "status_update", "session_id": sid,
+        "status": "STOPPED", "message": "User requested stop"
+    })
+    return {"status": "stopped", "session_id": sid}
+
+
+@app.post("/api/task/stop-after-step")
+async def stop_after_step(payload: CreateSessionPayload = None):
+    """Pause execution after the current step completes."""
+    sid = payload.session_id if payload and payload.session_id else "default"
+    session = registry.get(sid)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {sid} not found")
+    session.stop_after_step = True
+    await manager.broadcast({
+        "type": "status_update", "session_id": sid,
+        "status": "PAUSING", "message": "Will pause after current step"
+    })
+    return {"status": "will_pause_after_step", "session_id": sid}
+
+
+@app.post("/api/task/talk")
+async def direct_talk(payload: DirectTalkPayload):
+    """Send a direct message to the agent, bypassing the task loop."""
+    sid = payload.session_id or "default"
+    session = registry.get(sid)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {sid} not found")
+    await session.direct_talk_queue.put(payload.message)
+    logger.info(f"[{sid}] Direct talk: {payload.message[:80]}")
+    return {"status": "sent", "session_id": sid}
+
+
+@app.post("/api/task/override")
+async def override_overseer(payload: DirectTalkPayload):
+    """Force-approve the current action, overriding an Overseer rejection."""
+    sid = payload.session_id or "default"
+    session = registry.get(sid)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {sid} not found")
+    # Put an override message into the user queue as an approved action
+    await session.user_response_queue.put({
+        "approved": True,
+        "feedback": f"[USER OVERRIDE] {payload.message}"
+    })
+    await manager.broadcast({
+        "type": "user_decision", "session_id": sid,
+        "approved": True, "feedback": f"Overseer overridden: {payload.message}"
+    })
+    return {"status": "overridden", "session_id": sid}
+
+
+# ── History / Branching ──────────────────────────────────────────
+
+@app.delete("/api/task/history/{step_number}")
+async def delete_history_step(step_number: int, session_id: str = Query("default")):
+    """Delete a specific step from history without breaking sequence."""
+    session = registry.get(session_id)
+    if not session or not session.orchestrator:
+        raise HTTPException(status_code=404, detail="No active session")
+    state = session.orchestrator.state
+    before = len(state.history)
+    state.history = [s for s in state.history if s.step_number != step_number]
+    removed = before - len(state.history)
+    return {"status": "deleted" if removed else "not_found", "removed": removed, "session_id": session_id}
+
+
+@app.post("/api/task/branch")
+async def branch_task(payload: BranchPayload):
+    """Branch from the current state: freeze history, reset step counter."""
+    session = registry.get(payload.session_id)
+    if not session or not session.orchestrator:
+        raise HTTPException(status_code=404, detail="No active session")
+    state = session.orchestrator.state
+    # Create a branch point: archive current history and reset
+    state.system_metrics["branch_point"] = {
+        "step": state.current_step,
+        "history_length": len(state.history),
+    }
+    state.current_step = 1
+    # Remove the finish if it exists so agent continues
+    state.history = [s for s in state.history if s.tool_name != "finish_task"]
+    state.status = "RUNNING"
+    await manager.broadcast({
+        "type": "status_update", "session_id": payload.session_id,
+        "status": "BRANCHED", "message": f"Branched at step {state.current_step}"
+    })
+    return {"status": "branched", "session_id": payload.session_id, "branch_point": state.system_metrics["branch_point"]}
+
+
+@app.get("/api/task/status")
+async def task_status(session_id: str = Query("default")):
+    session = registry.get(session_id)
+    if not session or not session.orchestrator:
+        return {"session_id": session_id, "status": "IDLE"}
+
+    s = session.orchestrator.state
+    return {
+        "session_id": session_id,
+        "status": s.status,
+        "current_step": s.current_step,
+        "max_steps": s.max_steps,
+        "approval_mode": s.approval_mode,
+        "total_steps": len(s.history),
+        "stop_requested": session.stop_requested,
+        "stop_after_step": session.stop_after_step,
+    }
+
 
 @app.get("/api/state")
-async def get_state():
+async def get_state(session_id: str = Query("default")):
     try:
         base = os.path.dirname(os.path.abspath(__file__))
         memory_path = os.path.join(base, "working_memory.json")
@@ -140,26 +318,16 @@ async def get_state():
             with open(rules_path) as f:
                 rules = f.read()
 
-        return {"memory": memory, "rules": rules}
+        return {"memory": memory, "rules": rules, "session_id": session_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/task/status")
-async def task_status():
-    global orchestrator_instance
-    if orchestrator_instance is None:
-        return {"status": "IDLE"}
-    s = orchestrator_instance.state
-    return {
-        "status": s.status,
-        "current_step": s.current_step,
-        "max_steps": s.max_steps,
-        "approval_mode": s.approval_mode,
-        "total_steps": len(s.history)
-    }
+
+# ── WebSocket ─────────────────────────────────────────────────────
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_global(websocket: WebSocket):
+    """Global WebSocket — receives broadcasts from all sessions."""
     await manager.connect(websocket)
     try:
         while True:
@@ -171,8 +339,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception:
                     break
                 continue
-            if data == "ping" or data == '{"type":"ping"}':
-                continue
     except WebSocketDisconnect:
         pass
     except Exception as e:
@@ -180,7 +346,65 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         manager.disconnect(websocket)
 
-frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "frontend")
+
+@app.websocket("/ws/{session_id}")
+async def websocket_session(websocket: WebSocket, session_id: str):
+    """Session-scoped WebSocket — receives broadcasts only for one session."""
+    await manager.connect(websocket, session_id=session_id)
+    try:
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+            except asyncio.TimeoutError:
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception:
+                    break
+                continue
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.warning(f"WS error ({session_id}): {e}")
+    finally:
+        manager.disconnect(websocket, session_id=session_id)
+
+
+# ── Memory ─────────────────────────────────────────────────────────
+
+@app.get("/api/memory")
+async def get_memory_graph_api():
+    """Return the full HSWM graph state."""
+    graph = get_memory_graph()
+    return {
+        "current_node_id": graph.current_node_id,
+        "neighborhood": graph.get_neighborhood(),
+        "root": graph.get_node(graph.root().id) if graph.root() else None,
+    }
+
+
+@app.post("/api/memory/optimize")
+async def optimize_memory():
+    """Trigger a sleep-flow optimization cycle."""
+    from app.sleep_flow import run_sleep_cycle
+    await run_sleep_cycle()
+    return {"status": "optimized"}
+
+
+# ── Startup / Shutdown ────────────────────────────────────────────
+
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(sleep_loop(interval_seconds=3600))
+    logger.info("Sleep flow loop started (every 3600s)")
+
+
+# ── Static files ──────────────────────────────────────────────────
+
+frontend_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "..",
+    "frontend",
+)
 frontend_dir = os.path.abspath(frontend_dir)
 if os.path.isdir(frontend_dir):
     app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="static")

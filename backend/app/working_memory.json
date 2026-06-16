@@ -1,15 +1,19 @@
 {
-  "project_overview": "Bookstore Stock Checker - A simple app to track book inventory",
-  "facts_discovered": {
-    "tests_package": "Created __init__.py in tests/ to make it a package; run tests via python -m unittest tests.test_math"
-  },
-  "active_decisions": [
-    "Using a dict to map book titles to quantities"
+  "nodes": [
+    {
+      "id": "9162ccb6a400",
+      "title": "Root Core Memory",
+      "summary": "High-level project context, decisions, and discovered facts.",
+      "detail": "",
+      "parent_id": null,
+      "child_ids": [],
+      "linked_ids": [],
+      "has_deeper_detail": false,
+      "access_count": 0,
+      "created_at": 1781645965.798589,
+      "updated_at": 1781645965.872993
+    }
   ],
-  "todo_list": [
-    "Implement divide(a, b) in math_utils.py",
-    "Write unit tests in test_math.py",
-    "Verify all tests pass"
-  ],
-  "completed_tasks": []
+  "current_node_id": "9162ccb6a400",
+  "format": "hswm_v1"
 }

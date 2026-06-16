@@ -34,15 +34,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
         <p class="text-[10px] text-slate-500 font-medium uppercase tracking-widest">dev framework</p>
       </div>
     </div>
-    <div class="flex items-center gap-4">
-      <div id="status-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
-        <span class="pulse-dot bg-slate-400"></span> idle
+      <div class="flex items-center gap-3">
+        <span id="session-label" class="text-[10px] font-mono text-slate-600 bg-white/5 px-2 py-1 rounded" title="session id">--</span>
+        <div id="status-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+          <span class="pulse-dot bg-slate-400"></span> idle
+        </div>
+        <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+          <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+          <span id="connection-text">connecting</span>
+        </div>
       </div>
-      <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
-        <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-        <span id="connection-text">connecting</span>
-      </div>
-    </div>
   </header>
 
   <!-- Main Grid -->
@@ -81,13 +82,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
         </button>
       </section>
 
-      <!-- Telemetry -->
-      <section class="glass rounded-xl p-4 flex-1 flex flex-col gap-3" style="min-height:0">
+      <!-- Telemetry + Controls -->
+      <section class="glass rounded-xl p-4 flex flex-col gap-3" style="min-height:0">
         <div class="flex items-center gap-2 text-slate-400">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider">telemetry</h2>
         </div>
-        <div class="flex-1 scroll space-y-2 pr-1">
+        <div class="space-y-2 pr-1">
           <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
             <span class="text-[11px] text-slate-400">status</span>
             <span id="tel-status" class="text-[11px] font-semibold text-slate-500">idle</span>
@@ -104,6 +105,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
             <span class="text-[11px] text-slate-400">steps executed</span>
             <span id="tel-executed" class="text-[11px] font-semibold text-slate-500 font-mono">0</span>
           </div>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button id="stop-btn" class="flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
+          <button id="pause-btn" class="flex-1 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
+        </div>
+        <div class="flex gap-2">
+          <input id="talk-input" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-sky-500/50" placeholder="direct message to agent..." disabled>
+          <button id="talk-btn" class="px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600/40 border border-sky-600/30 rounded-lg text-[10px] font-bold text-sky-400 transition disabled:opacity-30" disabled>send</button>
         </div>
       </section>
     </div>
@@ -165,15 +174,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
         </div>
       </section>
 
-      <!-- State Viewer -->
+      <!-- State Viewer (HSWM) -->
       <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden" style="min-height:0">
         <div class="flex border-b border-white/5 bg-black/30 shrink-0">
-          <button id="tab-memory" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5 transition">memory</button>
+          <button id="tab-memory" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5 transition">graph</button>
           <button id="tab-rules" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent transition">rules</button>
+          <button id="tab-neighborhood" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent transition">neighbors</button>
         </div>
         <div class="flex-1 relative">
           <pre id="state-viewer" class="absolute inset-0 scroll p-3 mono text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap"></pre>
           <div id="rules-viewer" class="absolute inset-0 scroll p-3 text-[12px] text-slate-400 leading-relaxed hidden"></div>
+          <div id="neighborhood-viewer" class="absolute inset-0 scroll p-3 text-[11px] text-slate-400 leading-relaxed hidden mono"></div>
           <button id="refresh-state" class="absolute bottom-3 right-3 w-7 h-7 bg-slate-800 rounded-lg border border-white/5 flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition" title="refresh">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           </button>
@@ -198,15 +209,43 @@ const rulesViewer = $('rules-viewer');
 const approvalBanner = $('approval-banner');
 
 let socket = null;
+let sessionId = null;
 let memoryData = {};
 let rulesData = "";
+let neighborhoodData = null;
 let currentTab = 'memory';
 let isRunning = false;
 
+// --- Session Init ---
+async function initSession() {
+  // Use URL param ?session=xxx or create new
+  const params = new URLSearchParams(location.search);
+  const existing = params.get('session');
+  const body = existing ? JSON.stringify({session_id: existing}) : '{}';
+  try {
+    const r = await fetch('/api/session/create', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body
+    });
+    const d = await r.json();
+    sessionId = d.session_id;
+    $('session-label').textContent = sessionId;
+    // Update URL without reload
+    const url = new URL(location);
+    url.searchParams.set('session', sessionId);
+    history.replaceState({}, '', url);
+  } catch (_) {
+    sessionId = 'default';
+    $('session-label').textContent = sessionId;
+  }
+}
+
 // --- WebSocket ---
 function connectWS() {
+  if (!sessionId) return setTimeout(connectWS, 500);
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const url = `${proto}//${location.host}/ws`;
+  const url = `${proto}//${location.host}/ws/${sessionId}`;
   socket = new WebSocket(url);
 
   socket.onopen = () => {
@@ -246,6 +285,8 @@ function setConnection(ok) {
 
 // --- Message Handling ---
 function handle(msg) {
+  // Filter by session if present in message
+  if (msg.session_id && msg.session_id !== sessionId) return;
   switch (msg.type) {
     case 'step_update':
       addStep(msg.step);
@@ -297,10 +338,6 @@ function handle(msg) {
 
 function setStatus(s) {
   const badge = statusBadge;
-  const dot = badge.querySelector('.pulse-dot');
-  const label = badge.querySelector('span:last-child') || badge;
-  // badge structure: badge > span.pulse-dot + text
-  const textNode = badge.childNodes[2] || badge;
   const colors = {
     idle: ['bg-slate-800', 'text-slate-400', 'bg-slate-500'],
     running: ['bg-sky-500/10', 'text-sky-400', 'bg-sky-400'],
@@ -308,19 +345,25 @@ function setStatus(s) {
     failed: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
     error: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
     paused: ['bg-amber-500/10', 'text-amber-400', 'bg-amber-400'],
+    stopped: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
+    branching: ['bg-indigo-500/10', 'text-indigo-400', 'bg-indigo-400'],
   };
   const c = colors[s] || colors.idle;
   badge.className = `badge ${c[0]} ${c[1]} border border-white/5`;
   const dotEl = badge.querySelector('.pulse-dot');
   if (dotEl) dotEl.className = `pulse-dot ${c[2]}`;
-  // update text
   if (badge.childNodes.length >= 3) {
     badge.childNodes[2].textContent = s;
   } else {
-    // fallback
     badge.innerHTML = `<span class="pulse-dot ${c[2]}"></span> ${s}`;
   }
   telStatus.textContent = s;
+  enableControls(s === 'running');
+  if (s === 'running' || s === 'running') {
+    $('start-btn').disabled = true;
+  } else {
+    $('start-btn').disabled = false;
+  }
 }
 
 function addLog(text, color = 'slate-400') {
@@ -408,7 +451,7 @@ async function startTask() {
     const r = await fetch('/api/task/start', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({goal, approval_mode: mode, max_steps: steps})
+      body: JSON.stringify({goal, approval_mode: mode, max_steps: steps, session_id: sessionId})
     });
     if (!r.ok) {
       const err = await r.json();
@@ -432,17 +475,23 @@ async function submitApproval(approved) {
     await fetch('/api/task/approve', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({approved, feedback})
+      body: JSON.stringify({approved, feedback, session_id: sessionId})
     });
   } catch (_) {}
 }
 
 async function refreshState() {
   try {
-    const r = await fetch('/api/state');
-    const d = await r.json();
-    memoryData = d.memory || {};
-    rulesData = d.rules || '';
+    // Fetch both state and memory graph
+    const [sR, mR] = await Promise.all([
+      fetch('/api/state'),
+      fetch('/api/memory')
+    ]);
+    const sd = await sR.json();
+    const md = await mR.json();
+    memoryData = sd.memory || {};
+    rulesData = sd.rules || '';
+    neighborhoodData = md.neighborhood || null;
     renderView();
   } catch(_) {}
 }
@@ -450,10 +499,84 @@ async function refreshState() {
 function renderView() {
   if (currentTab === 'memory') {
     stateViewer.textContent = JSON.stringify(memoryData, null, 2);
-  } else {
+  } else if (currentTab === 'rules') {
     rulesViewer.textContent = rulesData;
+  } else if (currentTab === 'neighborhood') {
+    const nh = document.getElementById('neighborhood-viewer');
+    if (neighborhoodData) {
+      let txt = '';
+      const cur = neighborhoodData.current;
+      if (cur) txt += `► CURRENT: ${cur.title}\n  ${cur.summary}\n  id: ${cur.id}\n  access: ${cur.access_count}\n\n`;
+      if (neighborhoodData.children && neighborhoodData.children.length) {
+        txt += '── CHILDREN ──\n';
+        neighborhoodData.children.forEach(c => {
+          txt += `  ${c.has_deeper_detail ? '▼' : ' '} ${c.title}\n    ${c.summary.slice(0,100)}\n    id: ${c.id}\n\n`;
+        });
+      }
+      if (neighborhoodData.links && neighborhoodData.links.length) {
+        txt += '── LINKED ──\n';
+        neighborhoodData.links.forEach(l => {
+          txt += `  ↔ ${l.title}\n    ${l.summary.slice(0,100)}\n    id: ${l.id}\n\n`;
+        });
+      }
+      if (neighborhoodData.root) {
+        txt += `── ROOT ──\n  ${neighborhoodData.root.title}\n`;
+      }
+      nh.textContent = txt || '[empty graph]';
+    } else {
+      nh.textContent = '[no graph data]';
+    }
   }
 }
+
+// Tab switching
+$('tab-memory').onclick = () => {
+  currentTab = 'memory';
+  ['tab-memory','tab-rules','tab-neighborhood'].forEach(id => {
+    const el = $(id);
+    if (id === 'tab-memory') {
+      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
+    } else {
+      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+    }
+  });
+  stateViewer.classList.remove('hidden');
+  rulesViewer.classList.add('hidden');
+  document.getElementById('neighborhood-viewer').classList.add('hidden');
+  renderView();
+};
+
+$('tab-rules').onclick = () => {
+  currentTab = 'rules';
+  ['tab-memory','tab-rules','tab-neighborhood'].forEach(id => {
+    const el = $(id);
+    if (id === 'tab-rules') {
+      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
+    } else {
+      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+    }
+  });
+  stateViewer.classList.add('hidden');
+  rulesViewer.classList.remove('hidden');
+  document.getElementById('neighborhood-viewer').classList.add('hidden');
+  renderView();
+};
+
+document.getElementById('tab-neighborhood').onclick = () => {
+  currentTab = 'neighborhood';
+  ['tab-memory','tab-rules','tab-neighborhood'].forEach(id => {
+    const el = $(id);
+    if (id === 'tab-neighborhood') {
+      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
+    } else {
+      el.className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+    }
+  });
+  stateViewer.classList.add('hidden');
+  rulesViewer.classList.add('hidden');
+  document.getElementById('neighborhood-viewer').classList.remove('hidden');
+  renderView();
+};
 
 // --- Tab Switching ---
 $('tab-memory').onclick = () => {
@@ -474,12 +597,63 @@ $('tab-rules').onclick = () => {
   renderView();
 };
 
+// --- Control buttons ---
+function enableControls(running) {
+  $('stop-btn').disabled = !running;
+  $('pause-btn').disabled = !running;
+  $('talk-btn').disabled = !running;
+  $('talk-input').disabled = !running;
+}
+
+async function stopTask() {
+  try {
+    await fetch('/api/task/stop', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId})
+    });
+    addLog('stop requested', 'rose-400');
+  } catch(_) {}
+}
+
+async function pauseTask() {
+  try {
+    await fetch('/api/task/stop-after-step', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId})
+    });
+    addLog('will pause after current step', 'amber-400');
+  } catch(_) {}
+}
+
+async function talkToAgent() {
+  const msg = $('talk-input').value.trim();
+  if (!msg) return;
+  try {
+    await fetch('/api/task/talk', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, session_id: sessionId})
+    });
+    addLog(`talk: "${msg}"`, 'sky-400');
+    $('talk-input').value = '';
+  } catch(_) {}
+}
+
+$('talk-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') talkToAgent();
+});
+
 // --- Event Listeners ---
 $('start-btn').onclick = startTask;
 $('approve-btn').onclick = () => submitApproval(true);
 $('reject-btn').onclick = () => submitApproval(false);
 $('refresh-state').onclick = refreshState;
 $('clear-terminal').onclick = () => { terminal.innerHTML = ''; };
+$('stop-btn').onclick = stopTask;
+$('pause-btn').onclick = pauseTask;
+$('talk-btn').onclick = talkToAgent;
 
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
@@ -494,8 +668,11 @@ document.addEventListener('keydown', e => {
 });
 
 // Init
-connectWS();
-refreshState();
+(async () => {
+  await initSession();
+  connectWS();
+  refreshState();
+})();
 </script>
 </body>
 </html>

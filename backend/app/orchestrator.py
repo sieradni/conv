@@ -13,6 +13,7 @@ from app.sandbox import LocalSandbox
 from app.lm_client import LMStudioClient
 from app.prompts import SYSTEM_PROMPT
 from app.overseer import OverseerAgent
+from app.memory_graph import get_memory_graph, set_memory_graph, MemoryGraph
 
 
 class AgentOrchestrator:
@@ -24,7 +25,8 @@ class AgentOrchestrator:
         lm_studio_url: str = "http://localhost:1234/v1",
         sandbox_dir: str = "sandbox",
         max_steps: int = 15,
-        approval_mode: str = "AUTO_APPROVE"
+        approval_mode: str = "AUTO_APPROVE",
+        session_id: str = "default"
     ):
         """Initialize the agent orchestrator.
         
@@ -33,8 +35,10 @@ class AgentOrchestrator:
             lm_studio_url: LM Studio API base URL
             sandbox_dir: Path to the sandbox directory
             max_steps: Maximum execution steps before timeout
-            approval_mode: Approval strategy ("AUTO_APPROVE", "CHECK_WITH_OVERSEER", "WAIT_FOR_USER")
+            approval_mode: Approval strategy
+            session_id: Session identifier for multi-session support
         """
+        self.session_id = session_id
         self.task_goal = task_goal
         self.lm_studio_url = lm_studio_url
         self.sandbox = LocalSandbox(workspace_dir=sandbox_dir)
@@ -42,11 +46,19 @@ class AgentOrchestrator:
         set_executor(self.executor)
         
         self.lm_client = LMStudioClient(base_url=lm_studio_url, timeout=120.0)
-        self.state = AgentState(task_goal=task_goal, max_steps=max_steps, approval_mode=approval_mode)
+        self.state = AgentState(
+            session_id=session_id,
+            task_goal=task_goal,
+            max_steps=max_steps,
+            approval_mode=approval_mode
+        )
         self.state.status = "RUNNING"
         
         # Initialize Overseer agent
         self.overseer = OverseerAgent(api_url=lm_studio_url)
+        
+        # Memory Graph (HSWM) — shared singleton across sessions
+        self.memory_graph = get_memory_graph()
         
         # UI and HITL Hooks
         self.ui_manager = None  # Will be set by FastAPI
@@ -89,6 +101,62 @@ class AgentOrchestrator:
                 print(f"\n[-] Task failed: {self.state.system_metrics.get('failure_reason', 'Unknown')}")
                 break
             
+            # Check for stop request (immediate abort)
+            if self.user_queue and hasattr(self.user_queue, '_session_stop'):
+                # We use a separate mechanism via the session object
+                pass
+
+            # Check direct talk queue before each step
+            if self.user_queue is not None:
+                # Try to get the session from the registry
+                from app.session import registry as sess_registry
+                session = sess_registry.get(self.session_id)
+                if session and session.stop_requested:
+                    session.stop_requested = False
+                    self.state.mark_failed("Stopped by user")
+                    print(f"\n[-] Task stopped by user request.")
+                    break
+                if session and session.stop_after_step:
+                    session.stop_after_step = False
+                    session.status = "PAUSED"
+                    self.state.status = "PAUSED"
+                    print(f"\n[*] Paused after step by user request.")
+                    if self.ui_manager:
+                        await self.ui_manager.broadcast({
+                            "type": "status_update", "session_id": self.session_id,
+                            "status": "PAUSED", "message": "Paused after step"
+                        })
+                    # Wait for resume signal
+                    resume = await session.user_response_queue.get()
+                    if resume.get("approved") or resume.get("resume"):
+                        session.status = "RUNNING"
+                        self.state.status = "RUNNING"
+                        print(f"\n[*] Resuming...")
+                    else:
+                        self.state.mark_failed("Cancelled after pause")
+                        break
+                # Check for direct talk messages
+                if session and not session.direct_talk_queue.empty():
+                    try:
+                        msg = session.direct_talk_queue.get_nowait()
+                        print(f"\n[*] Direct talk received: {msg[:80]}")
+                        # Inject as a one-off step
+                        step_log = StepLog(
+                            step_number=self.state.current_step,
+                            thought="[Direct user instruction]",
+                            tool_name="direct_talk",
+                            tool_args={"message": msg},
+                            observation=f"User said: {msg}"
+                        )
+                        self.state.add_step(step_log)
+                        if self.ui_manager:
+                            await self.ui_manager.broadcast({
+                                "type": "step_update", "session_id": self.session_id,
+                                "step": step_log.dict()
+                            })
+                    except asyncio.QueueEmpty:
+                        pass
+
             # Build system prompt with current goal
             system_prompt = SYSTEM_PROMPT.format(goal=self.task_goal)
             
@@ -102,6 +170,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "step_start",
+                    "session_id": self.session_id,
                     "step_number": self.state.current_step,
                     "max_steps": self.state.max_steps
                 })
@@ -111,6 +180,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "llm_call",
+                    "session_id": self.session_id,
                     "step_number": self.state.current_step,
                     "status": "calling"
                 })
@@ -126,6 +196,7 @@ class AgentOrchestrator:
                 if self.ui_manager:
                     await self.ui_manager.broadcast({
                         "type": "error",
+                        "session_id": self.session_id,
                         "message": f"LM Studio API error: {str(e)}"
                     })
                 break
@@ -134,6 +205,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "llm_response",
+                    "session_id": self.session_id,
                     "step_number": self.state.current_step,
                     "status": "received"
                 })
@@ -247,6 +319,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "step_update",
+                    "session_id": self.session_id,
                     "step": step_log.dict()
                 })
             
@@ -314,8 +387,30 @@ class AgentOrchestrator:
                 summary = tool_args.get("summary", "Task completed")
                 return f"Task finished. Summary: {summary}"
             
+            # HSWM Navigation Tools
+            elif tool_name == "navigate_up":
+                return self.executor.navigate_up()
+            
+            elif tool_name == "navigate_down":
+                return self.executor.navigate_down(tool_args.get("node_id", ""))
+            
+            elif tool_name == "return_to_base":
+                return self.executor.return_to_base()
+            
+            elif tool_name == "read_detail":
+                return self.executor.read_detail(tool_args.get("node_id", ""))
+            
+            elif tool_name == "create_memory":
+                return self.executor.create_memory(
+                    title=tool_args.get("title", ""),
+                    summary=tool_args.get("summary", ""),
+                    detail=tool_args.get("detail", ""),
+                    parent_id=tool_args.get("parent_id", ""),
+                    link_to_ids=tool_args.get("link_to_ids", ""),
+                )
+            
             else:
-                return f"Error: Unknown tool '{tool_name}'. Available tools: write_file, read_file, run_command, finish_task"
+                return f"Error: Unknown tool '{tool_name}'. Available tools: write_file, read_file, run_command, finish_task, navigate_up, navigate_down, return_to_base, read_detail, create_memory"
         
         except Exception as e:
             return f"Error executing {tool_name}: {str(e)}"
@@ -365,6 +460,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "overseer_review_start",
+                    "session_id": self.session_id,
                     "tool_name": tool_name,
                     "tool_args": tool_args,
                     "thought": actor_thought
@@ -393,6 +489,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "overseer_review",
+                    "session_id": self.session_id,
                     "status": status,
                     "reasoning": reasoning,
                     "feedback": feedback,
@@ -411,6 +508,7 @@ class AgentOrchestrator:
             if self.ui_manager:
                 await self.ui_manager.broadcast({
                     "type": "awaiting_user_approval",
+                    "session_id": self.session_id,
                     "tool_name": tool_name,
                     "tool_args": tool_args,
                     "thought": actor_thought
@@ -425,6 +523,7 @@ class AgentOrchestrator:
                 if self.ui_manager:
                     await self.ui_manager.broadcast({
                         "type": "user_decision",
+                        "session_id": self.session_id,
                         "approved": user_response["approved"],
                         "feedback": user_response.get("feedback", "")
                     })
@@ -493,7 +592,7 @@ class AgentOrchestrator:
             return f"[Could not read sandbox files: {str(e)}]"
     
     def _compile_prompt_with_memory(self, base_prompt: str) -> str:
-        """Dynamically compile system prompt with current memory state.
+        """Dynamically compile system prompt with HSWM graph context.
         
         Args:
             base_prompt: Base system prompt template
@@ -502,25 +601,18 @@ class AgentOrchestrator:
             Compiled prompt with memory injection
         """
         try:
-            # Read memory files
+            # Read memory rules
             memory_rules_path = Path(__file__).parent / "memory_rules.md"
-            working_memory_path = Path(__file__).parent / "working_memory.json"
-            
             memory_rules = ""
             if memory_rules_path.exists():
-                with open(memory_rules_path, 'r') as f:
+                with open(memory_rules_path) as f:
                     memory_rules = f.read()
             else:
                 memory_rules = "No memory guidelines loaded."
-            
-            working_memory = ""
-            if working_memory_path.exists():
-                with open(working_memory_path, 'r') as f:
-                    working_memory = f.read()
-            else:
-                working_memory = "{}"
-            
-            # Compile prompt with memory injection
+
+            # Get HSWM context
+            graph_context = self.memory_graph.current_context()
+
             compiled = f"""{base_prompt}
 
 ---
@@ -528,8 +620,8 @@ MEMORY GUIDELINES (You can modify these using 'refine_memory_methodology'):
 {memory_rules}
 
 ---
-CURRENT WORKING MEMORY STATE:
-{working_memory}
+HIERARCHICAL MEMORY (navigate with navigate_up/down/read_detail/create_memory):
+{graph_context}
 """
             
             return compiled
