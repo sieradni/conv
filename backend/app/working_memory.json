@@ -1,12 +1,14 @@
 {
   "project_overview": "Bookstore Stock Checker - A simple app to track book inventory",
-  "facts_discovered": {},
+  "facts_discovered": {
+    "tests_package": "Created __init__.py in tests/ to make it a package; run tests via python -m unittest tests.test_math"
+  },
   "active_decisions": [
     "Using a dict to map book titles to quantities"
   ],
   "todo_list": [
-    "Implement check_stock(title) returning availability message",
-    "Write unit tests in tests/test_code.py",
+    "Implement divide(a, b) in math_utils.py",
+    "Write unit tests in test_math.py",
     "Verify all tests pass"
   ],
   "completed_tasks": []

@@ -19,6 +19,7 @@ class AgentState(BaseModel):
     """Central state machine for agent execution."""
     task_goal: str
     status: str = "IDLE"  # IDLE, RUNNING, PAUSED, COMPLETED, FAILED
+    approval_mode: str = "WAIT_FOR_USER"  # "AUTO_APPROVE", "CHECK_WITH_OVERSEER", "WAIT_FOR_USER"
     current_step: int = 1
     max_steps: int = 15
     history: List[StepLog] = Field(default_factory=list)

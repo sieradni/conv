@@ -293,6 +293,22 @@ New Rules Applied:
                 "error": str(e)
             })
             raise Exception(error_msg)
+    
+    def ask_overseer(self, question: str) -> str:
+        """Ask the Overseer agent a question for guidance (non-blocking).
+        
+        This is a placeholder that will be properly integrated in the orchestrator.
+        The actual call will be intercepted by the orchestrator.
+        
+        Args:
+            question: The question to ask the Overseer
+        
+        Returns:
+            Placeholder response (actual implementation in orchestrator)
+        """
+        # This will be called through the orchestrator which will handle
+        # async execution of the OverseerAgent
+        return f"[Asking Overseer: {question[:50]}...]"
 
 
 

@@ -12,6 +12,7 @@ from app.tools import ToolExecutor, set_executor
 from app.sandbox import LocalSandbox
 from app.lm_client import LMStudioClient
 from app.prompts import SYSTEM_PROMPT
+from app.overseer import OverseerAgent
 
 
 class AgentOrchestrator:
@@ -22,7 +23,8 @@ class AgentOrchestrator:
         task_goal: str,
         lm_studio_url: str = "http://localhost:1234/v1",
         sandbox_dir: str = "sandbox",
-        max_steps: int = 15
+        max_steps: int = 15,
+        approval_mode: str = "AUTO_APPROVE"
     ):
         """Initialize the agent orchestrator.
         
@@ -31,6 +33,7 @@ class AgentOrchestrator:
             lm_studio_url: LM Studio API base URL
             sandbox_dir: Path to the sandbox directory
             max_steps: Maximum execution steps before timeout
+            approval_mode: Approval strategy ("AUTO_APPROVE", "CHECK_WITH_OVERSEER", "WAIT_FOR_USER")
         """
         self.task_goal = task_goal
         self.lm_studio_url = lm_studio_url
@@ -38,9 +41,16 @@ class AgentOrchestrator:
         self.executor = ToolExecutor(self.sandbox)
         set_executor(self.executor)
         
-        self.lm_client = LMStudioClient(base_url=lm_studio_url)
-        self.state = AgentState(task_goal=task_goal, max_steps=max_steps)
+        self.lm_client = LMStudioClient(base_url=lm_studio_url, timeout=120.0)
+        self.state = AgentState(task_goal=task_goal, max_steps=max_steps, approval_mode=approval_mode)
         self.state.status = "RUNNING"
+        
+        # Initialize Overseer agent
+        self.overseer = OverseerAgent(api_url=lm_studio_url)
+        
+        # UI and HITL Hooks
+        self.ui_manager = None  # Will be set by FastAPI
+        self.user_queue = None   # Will be set by FastAPI
         
         # Get active model
         self.model_name = None
@@ -53,6 +63,10 @@ class AgentOrchestrator:
             print(f"[*] Using model: {self.model_name}")
         else:
             raise RuntimeError("No models available in LM Studio")
+        
+        # Initialize Overseer agent
+        await self.overseer.initialize()
+        print(f"[*] Overseer initialized with approval mode: {self.state.approval_mode}")
     
     async def run_loop(self) -> AgentState:
         """Execute the main agent loop until task completion or max steps.
@@ -84,8 +98,22 @@ class AgentOrchestrator:
             # Build message history (only include context from last few steps to manage token usage)
             messages = self._build_messages(system_prompt)
             
+            # Broadcast step start
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "step_start",
+                    "step_number": self.state.current_step,
+                    "max_steps": self.state.max_steps
+                })
+
             # Call LM Studio
             print(f"\n[Step {self.state.current_step}] Calling LM Studio...")
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "llm_call",
+                    "step_number": self.state.current_step,
+                    "status": "calling"
+                })
             try:
                 response = await self.lm_client.chat_completion(
                     model=self.model_name,
@@ -95,7 +123,20 @@ class AgentOrchestrator:
             except Exception as e:
                 self.state.mark_failed(f"LM Studio API error: {str(e)}")
                 print(f"[-] LM Studio error: {str(e)}")
+                if self.ui_manager:
+                    await self.ui_manager.broadcast({
+                        "type": "error",
+                        "message": f"LM Studio API error: {str(e)}"
+                    })
                 break
+
+            # Broadcast LLM response received
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "llm_response",
+                    "step_number": self.state.current_step,
+                    "status": "received"
+                })
             
             # Parse response
             if not response or 'choices' not in response:
@@ -163,8 +204,34 @@ class AgentOrchestrator:
             print(f"[*] Tool: {tool_name}")
             print(f"[*] Args: {tool_args}")
             
-            # Execute tool
-            observation = await self._execute_tool(tool_name, tool_args)
+            # Check if this tool requires approval
+            requires_approval = tool_name in ["write_file", "run_command", "finish_task"]
+            
+            # For finish_task, we ALWAYS want verification if possible
+            should_run_gate = False
+            current_mode = self.state.approval_mode
+            
+            if requires_approval:
+                if current_mode != "AUTO_APPROVE":
+                    should_run_gate = True
+                elif tool_name == "finish_task":
+                    # Force Overseer check even in AUTO_APPROVE for finish_task
+                    should_run_gate = True
+                    current_mode = "CHECK_WITH_OVERSEER"
+
+            # Apply approval gate if required
+            if should_run_gate:
+                approval_result = await self._apply_approval_gate(thought, tool_name, tool_args, mode_override=current_mode)
+                if not approval_result["approved"]:
+                    # Rejection: feed back the feedback to the Actor
+                    observation = f"Action REJECTED by {approval_result['source']}: {approval_result['feedback']}"
+                    print(f"[!] {observation}")
+                else:
+                    # Approved: continue with execution
+                    observation = await self._execute_tool(tool_name, tool_args)
+            else:
+                # Auto-approved or safe tool: execute directly
+                observation = await self._execute_tool(tool_name, tool_args)
             
             # Log step
             step_log = StepLog(
@@ -175,6 +242,13 @@ class AgentOrchestrator:
                 observation=observation
             )
             self.state.add_step(step_log)
+            
+            # Broadcast update to UI
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "step_update",
+                    "step": step_log.dict()
+                })
             
             # Check if task is finished
             if tool_name == "finish_task":
@@ -231,6 +305,11 @@ class AgentOrchestrator:
                 result = self.executor.refine_memory_methodology(new_rules, reflection)
                 return f"✓ {result}"
             
+            elif tool_name == "ask_overseer":
+                question = tool_args.get("question", "")
+                response = await self.overseer.ask_overseer(question)
+                return f"Overseer Response:\n{response}"
+            
             elif tool_name == "finish_task":
                 summary = tool_args.get("summary", "Task completed")
                 return f"Task finished. Summary: {summary}"
@@ -252,6 +331,166 @@ class AgentOrchestrator:
         """
         required_fields = {"thought", "tool_name", "tool_args"}
         return isinstance(action, dict) and required_fields.issubset(action.keys())
+    
+    async def _apply_approval_gate(
+        self,
+        actor_thought: str,
+        tool_name: str,
+        tool_args: Dict[str, Any],
+        mode_override: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Apply approval gate for critical tools based on approval_mode.
+        
+        Args:
+            actor_thought: Actor's reasoning for the action
+            tool_name: Name of the tool to execute
+            tool_args: Arguments for the tool
+            mode_override: Optional mode to use instead of self.state.approval_mode
+        
+        Returns:
+            Dictionary with "approved", "source", and "feedback" keys
+        """
+        
+        mode = mode_override or self.state.approval_mode
+        
+        if mode == "AUTO_APPROVE":
+            # Auto-approve (shouldn't reach here in run_loop, but for safety)
+            return {"approved": True, "source": "AUTO_APPROVE", "feedback": ""}
+        
+        elif mode == "CHECK_WITH_OVERSEER":
+            # Get file context for Overseer review
+            files_context = self._get_sandbox_file_context()
+            
+            # Broadcast Overseer review started
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "overseer_review_start",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "thought": actor_thought
+                })
+            
+            # Ask Overseer to review the action
+            print(f"[*] Requesting Overseer review of {tool_name}...")
+            review = await self.overseer.review_action(
+                actor_thought=actor_thought,
+                tool_name=tool_name,
+                tool_args=tool_args,
+                files_context=files_context
+            )
+            
+            # Check Overseer's decision
+            status = review.get("status", "REJECTED")
+            reasoning = review.get("reasoning", "No reasoning provided")
+            feedback = review.get("feedback", "")
+            
+            print(f"[Overseer] Status: {status}")
+            print(f"[Overseer] Reasoning: {reasoning}")
+            if feedback:
+                print(f"[Overseer] Feedback: {feedback}")
+            
+            # Broadcast Overseer review result
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "overseer_review",
+                    "status": status,
+                    "reasoning": reasoning,
+                    "feedback": feedback,
+                    "approved": status == "APPROVED",
+                    "tool_name": tool_name
+                })
+            
+            return {
+                "approved": status == "APPROVED",
+                "source": "OVERSEER",
+                "feedback": f"{reasoning}. {feedback}".strip()
+            }
+        
+        elif mode == "WAIT_FOR_USER":
+            # 1. Broadcast the pending action to the WebSocket if available
+            if self.ui_manager:
+                await self.ui_manager.broadcast({
+                    "type": "awaiting_user_approval",
+                    "tool_name": tool_name,
+                    "tool_args": tool_args,
+                    "thought": actor_thought
+                })
+
+            # 2. Await the response from the FastAPI Queue or fallback to CLI
+            if self.user_queue:
+                print("[*] Pausing and waiting for user approval on Web UI...")
+                user_response = await self.user_queue.get()
+                
+                # Broadcast the decision
+                if self.ui_manager:
+                    await self.ui_manager.broadcast({
+                        "type": "user_decision",
+                        "approved": user_response["approved"],
+                        "feedback": user_response.get("feedback", "")
+                    })
+                
+                if not user_response["approved"]:
+                    return {
+                        "approved": False,
+                        "source": "USER_UI",
+                        "feedback": user_response.get("feedback") or "User rejected the action"
+                    }
+                else:
+                    return {"approved": True, "source": "USER_UI", "feedback": ""}
+            else:
+                # Fallback to CLI if no queue provided
+                print(f"\n[!] Approval Required (CLI Fallback)!")
+                print(f"    Actor wants to execute: {tool_name}")
+                print(f"    Reasoning: {actor_thought}")
+                print(f"    Arguments: {json.dumps(tool_args, indent=2)}")
+                print(f"\n    Type 'approve' to allow, or provide feedback: ", end="")
+                
+                user_input = input().strip().lower()
+                
+                if user_input == "approve":
+                    return {"approved": True, "source": "USER_CLI", "feedback": ""}
+                else:
+                    return {
+                        "approved": False,
+                        "source": "USER_CLI",
+                        "feedback": user_input if user_input else "User rejected the action"
+                    }
+        
+        else:
+            # Unknown approval mode, default to rejection
+            return {
+                "approved": False,
+                "source": "SYSTEM",
+                "feedback": f"Unknown approval mode: {self.state.approval_mode}"
+            }
+    
+    def _get_sandbox_file_context(self) -> str:
+        """Get a summary of files currently in the sandbox for Overseer review.
+        
+        Returns:
+            String representation of sandbox files
+        """
+        try:
+            files = self.sandbox.list_files(".")
+            if not files:
+                return "[No files in sandbox]"
+            
+            context_lines = ["Files in sandbox:"]
+            for file in files:
+                try:
+                    if file.endswith(".py") and file != "__pycache__":
+                        content = self.sandbox.read_file(file)
+                        # Limit to first 200 chars per file
+                        preview = content[:200] + "..." if len(content) > 200 else content
+                        context_lines.append(f"  {file}: {preview}")
+                    else:
+                        context_lines.append(f"  {file}")
+                except:
+                    context_lines.append(f"  {file}")
+            
+            return "\n".join(context_lines)
+        except Exception as e:
+            return f"[Could not read sandbox files: {str(e)}]"
     
     def _compile_prompt_with_memory(self, base_prompt: str) -> str:
         """Dynamically compile system prompt with current memory state.
@@ -309,8 +548,8 @@ CURRENT WORKING MEMORY STATE:
         """
         messages = [{"role": "user", "content": system_prompt}]
         
-        # Include ONLY the last 2 steps to keep context window extremely small
-        recent_steps = self.state.history[-2:] if self.state.history else []
+        # Include last 5 steps for better context retention
+        recent_steps = self.state.history[-5:] if self.state.history else []
         
         if recent_steps:
             # Build context from last 2 steps
@@ -366,7 +605,8 @@ async def run_agent(
     task_goal: str,
     lm_studio_url: str = "http://localhost:1234/v1",
     sandbox_dir: str = "sandbox",
-    max_steps: int = 15
+    max_steps: int = 15,
+    approval_mode: str = "AUTO_APPROVE"
 ) -> AgentState:
     """Run an agent to completion.
     
@@ -375,6 +615,7 @@ async def run_agent(
         lm_studio_url: LM Studio API URL
         sandbox_dir: Sandbox directory path
         max_steps: Maximum execution steps
+        approval_mode: Approval strategy ("AUTO_APPROVE", "CHECK_WITH_OVERSEER", "WAIT_FOR_USER")
     
     Returns:
         Final agent state
@@ -383,7 +624,8 @@ async def run_agent(
         task_goal=task_goal,
         lm_studio_url=lm_studio_url,
         sandbox_dir=sandbox_dir,
-        max_steps=max_steps
+        max_steps=max_steps,
+        approval_mode=approval_mode
     )
     
     await orchestrator.initialize()

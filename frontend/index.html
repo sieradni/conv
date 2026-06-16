@@ -1,13 +1,501 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agentic Development Framework</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>agentic | dev framework</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b0f1a;--surface:#111827;--border:rgba(255,255,255,0.06);--text:#e2e8f0;--muted:#64748b;--accent:#38bdf8;--accent-dim:rgba(56,189,248,0.15)}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+.mono{font-family:'JetBrains Mono',monospace}
+.glass{background:var(--surface);border:1px solid var(--border);backdrop-filter:blur(8px)}
+.scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
+.scroll::-webkit-scrollbar{width:4px}
+.scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse-dot{width:6px;height:6px;border-radius:999px;animation:pulse-dot 1.5s ease-in-out infinite}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.slide-up{animation:slideUp .25s ease-out}
+</style>
 </head>
 <body>
-    <h1>Agentic Development Framework</h1>
-    <p>Phase 1: Environment Setup & LM Studio Verification</p>
-    <p>Phase 5 Web UI - Coming Soon</p>
+<div id="app" class="h-screen flex flex-col p-3 gap-3" style="min-height:0">
+
+  <!-- Header -->
+  <header class="glass rounded-xl px-5 py-3 flex items-center justify-between shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">A</div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight">agentic</h1>
+        <p class="text-[10px] text-slate-500 font-medium uppercase tracking-widest">dev framework</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <div id="status-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+        <span class="pulse-dot bg-slate-400"></span> idle
+      </div>
+      <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+        <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+        <span id="connection-text">connecting</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <div class="flex-1 grid grid-cols-12 gap-3" style="min-height:0">
+
+    <!-- Left Column: Config -->
+    <div class="col-span-3 flex flex-col gap-3">
+
+      <!-- Config Panel -->
+      <section class="glass rounded-xl p-4 flex flex-col gap-3">
+        <div class="flex items-center gap-2 text-slate-400 mb-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider">configure</h2>
+        </div>
+        <div>
+          <label class="text-[10px] font-medium text-slate-500 mb-1.5 block">task goal</label>
+          <textarea id="task-goal" rows="4" class="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-sky-500/50 focus:ring-1 focus:ring-sky-500/20 transition resize-none mono" placeholder="Create a hello.py that prints hello world..."></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-medium text-slate-500 mb-1.5 block">approval</label>
+            <select id="approval-mode" class="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50 cursor-pointer">
+              <option value="AUTO_APPROVE">auto</option>
+              <option value="CHECK_WITH_OVERSEER">overseer</option>
+              <option value="WAIT_FOR_USER" selected>hitl (user)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-medium text-slate-500 mb-1.5 block">max steps</label>
+            <input id="max-steps" type="number" value="15" min="1" max="100" class="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-sky-500/50">
+          </div>
+        </div>
+        <button id="start-btn" class="w-full py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 rounded-lg font-semibold text-xs tracking-wide transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          launch
+        </button>
+      </section>
+
+      <!-- Telemetry -->
+      <section class="glass rounded-xl p-4 flex-1 flex flex-col gap-3" style="min-height:0">
+        <div class="flex items-center gap-2 text-slate-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider">telemetry</h2>
+        </div>
+        <div class="flex-1 scroll space-y-2 pr-1">
+          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
+            <span class="text-[11px] text-slate-400">status</span>
+            <span id="tel-status" class="text-[11px] font-semibold text-slate-500">idle</span>
+          </div>
+          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
+            <span class="text-[11px] text-slate-400">step</span>
+            <span id="tel-step" class="text-[11px] font-semibold text-slate-500 font-mono">0 / 0</span>
+          </div>
+          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
+            <span class="text-[11px] text-slate-400">mode</span>
+            <span id="tel-mode" class="text-[11px] font-semibold text-slate-500">--</span>
+          </div>
+          <div class="flex justify-between items-center p-2.5 bg-black/30 rounded-lg border border-white/5">
+            <span class="text-[11px] text-slate-400">steps executed</span>
+            <span id="tel-executed" class="text-[11px] font-semibold text-slate-500 font-mono">0</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Center Column: Terminal -->
+    <div class="col-span-6 flex flex-col gap-3">
+      <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden relative" style="min-height:0">
+        <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">terminal</h2>
+          </div>
+          <button id="clear-terminal" class="text-[10px] text-slate-600 hover:text-slate-400 transition font-medium">clear</button>
+        </div>
+        <div id="terminal" class="flex-1 scroll p-3 mono text-[12px] leading-relaxed space-y-2">
+          <div class="text-slate-600 italic text-[11px]">ready. configure and launch a task.</div>
+        </div>
+
+        <!-- HITL Banner -->
+        <div id="approval-banner" class="hidden absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/80 to-transparent">
+          <div class="bg-amber-950/40 border border-amber-600/30 rounded-xl p-4 backdrop-blur slide-up">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+              </div>
+              <div class="flex-1 space-y-2">
+                <p class="text-xs font-semibold text-amber-300">approval required</p>
+                <p id="approval-thought" class="text-[11px] text-slate-400 italic leading-relaxed"></p>
+                <div class="bg-black/40 rounded-lg p-2.5 border border-white/5">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-medium text-slate-500 uppercase tracking-wider">tool</span>
+                    <span id="approval-tool" class="text-[11px] font-mono text-sky-400 font-medium"></span>
+                  </div>
+                  <pre id="approval-args" class="text-[10px] text-slate-500 font-mono truncate"></pre>
+                </div>
+                <div class="flex gap-2">
+                  <input id="feedback-input" type="text" class="flex-1 bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 transition" placeholder="feedback (optional)">
+                  <button id="approve-btn" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[11px] font-semibold transition">approve</button>
+                  <button id="reject-btn" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 rounded-lg text-[11px] font-semibold transition">reject</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Column: Overseer + State -->
+    <div class="col-span-3 flex flex-col gap-3">
+
+      <!-- Overseer Panel -->
+      <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden" style="min-height:0">
+        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/5 bg-black/30 shrink-0 text-slate-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider">overseer</h2>
+        </div>
+        <div id="overseer-logs" class="flex-1 scroll p-3 space-y-2 text-xs">
+          <div class="text-slate-600 italic text-[11px] text-center mt-6">no reviews yet</div>
+        </div>
+      </section>
+
+      <!-- State Viewer -->
+      <section class="glass rounded-xl flex-1 flex flex-col overflow-hidden" style="min-height:0">
+        <div class="flex border-b border-white/5 bg-black/30 shrink-0">
+          <button id="tab-memory" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5 transition">memory</button>
+          <button id="tab-rules" class="flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent transition">rules</button>
+        </div>
+        <div class="flex-1 relative">
+          <pre id="state-viewer" class="absolute inset-0 scroll p-3 mono text-[11px] text-slate-400 leading-relaxed whitespace-pre-wrap"></pre>
+          <div id="rules-viewer" class="absolute inset-0 scroll p-3 text-[12px] text-slate-400 leading-relaxed hidden"></div>
+          <button id="refresh-state" class="absolute bottom-3 right-3 w-7 h-7 bg-slate-800 rounded-lg border border-white/5 flex items-center justify-center text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition" title="refresh">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const terminal = $('terminal');
+const statusBadge = $('status-badge');
+const telStatus = $('tel-status');
+const telStep = $('tel-step');
+const telMode = $('tel-mode');
+const telExecuted = $('tel-executed');
+const overseerLogs = $('overseer-logs');
+const stateViewer = $('state-viewer');
+const rulesViewer = $('rules-viewer');
+const approvalBanner = $('approval-banner');
+
+let socket = null;
+let memoryData = {};
+let rulesData = "";
+let currentTab = 'memory';
+let isRunning = false;
+
+// --- WebSocket ---
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}/ws`;
+  socket = new WebSocket(url);
+
+  socket.onopen = () => {
+    setConnection(true);
+  };
+
+  socket.onclose = () => {
+    setConnection(false);
+    setTimeout(connectWS, 2000);
+  };
+
+  socket.onerror = () => {
+    setConnection(false);
+  };
+
+  socket.onmessage = e => {
+    try {
+      handle(JSON.parse(e.data));
+    } catch(_) {}
+  };
+}
+
+function setConnection(ok) {
+  const dot = $('connection-dot');
+  const txt = $('connection-text');
+  const badge = $('connection-badge');
+  if (ok) {
+    dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400';
+    txt.textContent = 'connected';
+    badge.className = 'badge bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+  } else {
+    dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+    txt.textContent = 'disconnected';
+    badge.className = 'badge bg-rose-500/10 text-rose-400 border border-rose-500/20';
+  }
+}
+
+// --- Message Handling ---
+function handle(msg) {
+  switch (msg.type) {
+    case 'step_update':
+      addStep(msg.step);
+      telExecuted.textContent = msg.step.step_number || '0';
+      break;
+    case 'step_start':
+      telStep.textContent = `${msg.step_number} / ${msg.max_steps}`;
+      break;
+    case 'status_update':
+      setStatus(msg.status === 'RUNNING' ? 'running' : msg.status.toLowerCase());
+      if (msg.goal) addLog(`task: ${msg.goal}`, 'slate-500');
+      if (msg.approval_mode) telMode.textContent = msg.approval_mode;
+      if (msg.max_steps) telStep.textContent = `1 / ${msg.max_steps}`;
+      isRunning = msg.status === 'RUNNING';
+      break;
+    case 'task_complete':
+      setStatus(msg.status === 'COMPLETED' ? 'completed' : msg.status.toLowerCase());
+      isRunning = false;
+      addLog(`task ${msg.status.toLowerCase()} (${msg.steps} steps)`, msg.status === 'COMPLETED' ? 'emerald-400' : 'amber-400');
+      break;
+    case 'llm_call':
+      addLog(`llm call...`, 'sky-500');
+      break;
+    case 'llm_response':
+      addLog(`llm response received`, 'emerald-500');
+      break;
+    case 'overseer_review_start':
+      addLog(`overseer reviewing...`, 'indigo-400');
+      break;
+    case 'overseer_review':
+      addOverseerReview(msg);
+      break;
+    case 'awaiting_user_approval':
+      showApproval(msg);
+      break;
+    case 'user_decision':
+      hideApproval();
+      addLog(`user: ${msg.approved ? 'approved' : 'rejected'}${msg.feedback ? ' (' + msg.feedback + ')' : ''}`, msg.approved ? 'emerald-400' : 'rose-400');
+      break;
+    case 'ping':
+      break;
+    case 'error':
+      addLog(`error: ${msg.message}`, 'rose-400');
+      setStatus('error');
+      isRunning = false;
+      break;
+  }
+}
+
+function setStatus(s) {
+  const badge = statusBadge;
+  const dot = badge.querySelector('.pulse-dot');
+  const label = badge.querySelector('span:last-child') || badge;
+  // badge structure: badge > span.pulse-dot + text
+  const textNode = badge.childNodes[2] || badge;
+  const colors = {
+    idle: ['bg-slate-800', 'text-slate-400', 'bg-slate-500'],
+    running: ['bg-sky-500/10', 'text-sky-400', 'bg-sky-400'],
+    completed: ['bg-emerald-500/10', 'text-emerald-400', 'bg-emerald-400'],
+    failed: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
+    error: ['bg-rose-500/10', 'text-rose-400', 'bg-rose-500'],
+    paused: ['bg-amber-500/10', 'text-amber-400', 'bg-amber-400'],
+  };
+  const c = colors[s] || colors.idle;
+  badge.className = `badge ${c[0]} ${c[1]} border border-white/5`;
+  const dotEl = badge.querySelector('.pulse-dot');
+  if (dotEl) dotEl.className = `pulse-dot ${c[2]}`;
+  // update text
+  if (badge.childNodes.length >= 3) {
+    badge.childNodes[2].textContent = s;
+  } else {
+    // fallback
+    badge.innerHTML = `<span class="pulse-dot ${c[2]}"></span> ${s}`;
+  }
+  telStatus.textContent = s;
+}
+
+function addLog(text, color = 'slate-400') {
+  const d = document.createElement('div');
+  d.className = `text-${color} slide-up`;
+  d.innerHTML = `<span class="text-slate-600 mr-2">&#9656;</span>${text}`;
+  terminal.appendChild(d);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function addStep(step) {
+  const d = document.createElement('div');
+  const toolColor = step.tool_name.includes('error') ? 'rose' : step.tool_name === 'finish_task' ? 'emerald' : 'sky';
+  d.className = 'slide-up';
+  d.innerHTML = `
+    <div class="flex items-center gap-2 mb-1">
+      <span class="text-[10px] font-bold text-slate-600 bg-white/5 px-1.5 py-0.5 rounded">step ${step.step_number}</span>
+      <span class="text-[11px] font-bold text-${toolColor}-400 mono">${step.tool_name}</span>
+    </div>
+    <div class="text-slate-400 italic text-[11px] mb-1.5 pl-1">${step.thought || ''}</div>
+    <div class="bg-black/30 border border-white/5 rounded p-2 text-[10px] text-slate-500 mono mb-1.5 overflow-x-auto">${JSON.stringify(step.tool_args)}</div>
+    <div class="text-slate-500 text-[11px] pl-1 border-l-2 border-${toolColor}-500/30 py-1 mb-3 whitespace-pre-wrap">${step.observation || ''}</div>
+  `;
+  terminal.appendChild(d);
+  terminal.scrollTop = terminal.scrollHeight;
+  refreshState();
+}
+
+function addOverseerReview(msg) {
+  const approved = msg.approved;
+  const status = msg.status || (approved ? 'APPROVED' : 'REJECTED');
+  const color = approved ? 'emerald' : 'rose';
+  const d = document.createElement('div');
+  d.className = `slide-up p-2.5 bg-${color}-500/5 border border-${color}-500/10 rounded-lg`;
+  d.innerHTML = `
+    <div class="flex items-center justify-between mb-1.5">
+      <span class="text-[10px] font-bold text-${color}-400 uppercase tracking-wider">${status}</span>
+      <span class="text-[9px] text-slate-600 font-mono">overseer</span>
+    </div>
+    <p class="text-[11px] text-slate-400">${msg.reasoning || ''}</p>
+    ${msg.feedback ? `<p class="text-[11px] text-slate-500 mt-1 italic">${msg.feedback}</p>` : ''}
+  `;
+  const empty = overseerLogs.querySelector('.text-slate-600');
+  if (empty) empty.remove();
+  overseerLogs.prepend(d);
+
+  if (!approved) {
+    addLog(`overseer rejected: ${msg.reasoning || ''}`, 'rose-400');
+  }
+}
+
+function showApproval(msg) {
+  $('approval-thought').textContent = msg.thought || '';
+  $('approval-tool').textContent = msg.tool_name || '';
+  $('approval-args').textContent = JSON.stringify(msg.tool_args || {});
+  $('feedback-input').value = '';
+  approvalBanner.classList.remove('hidden');
+  setStatus('paused');
+}
+
+function hideApproval() {
+  approvalBanner.classList.add('hidden');
+  if (isRunning) setStatus('running');
+}
+
+// --- Actions ---
+async function startTask() {
+  const goal = $('task-goal').value.trim();
+  if (!goal) { $('task-goal').focus(); return; }
+
+  const mode = $('approval-mode').value;
+  const steps = parseInt($('max-steps').value) || 15;
+
+  terminal.innerHTML = '';
+  overseerLogs.innerHTML = '<div class="text-slate-600 italic text-[11px] text-center mt-6">no reviews yet</div>';
+  hideApproval();
+  setStatus('running');
+  isRunning = true;
+  telStep.textContent = `1 / ${steps}`;
+  telMode.textContent = mode;
+  telExecuted.textContent = '0';
+  $('start-btn').disabled = true;
+
+  try {
+    const r = await fetch('/api/task/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({goal, approval_mode: mode, max_steps: steps})
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      addLog(`failed: ${err.detail || 'request failed'}`, 'rose-400');
+      setStatus('error');
+      isRunning = false;
+    }
+  } catch (err) {
+    addLog(`network error: ${err.message}`, 'rose-400');
+    setStatus('error');
+    isRunning = false;
+  } finally {
+    $('start-btn').disabled = false;
+  }
+}
+
+async function submitApproval(approved) {
+  const feedback = $('feedback-input').value.trim();
+  hideApproval();
+  try {
+    await fetch('/api/task/approve', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({approved, feedback})
+    });
+  } catch (_) {}
+}
+
+async function refreshState() {
+  try {
+    const r = await fetch('/api/state');
+    const d = await r.json();
+    memoryData = d.memory || {};
+    rulesData = d.rules || '';
+    renderView();
+  } catch(_) {}
+}
+
+function renderView() {
+  if (currentTab === 'memory') {
+    stateViewer.textContent = JSON.stringify(memoryData, null, 2);
+  } else {
+    rulesViewer.textContent = rulesData;
+  }
+}
+
+// --- Tab Switching ---
+$('tab-memory').onclick = () => {
+  currentTab = 'memory';
+  $('tab-memory').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
+  $('tab-rules').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+  stateViewer.classList.remove('hidden');
+  rulesViewer.classList.add('hidden');
+  renderView();
+};
+
+$('tab-rules').onclick = () => {
+  currentTab = 'rules';
+  $('tab-rules').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest border-b-2 border-sky-400 text-sky-400 bg-sky-400/5';
+  $('tab-memory').className = 'flex-1 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:text-slate-400 border-b-2 border-transparent';
+  stateViewer.classList.add('hidden');
+  rulesViewer.classList.remove('hidden');
+  renderView();
+};
+
+// --- Event Listeners ---
+$('start-btn').onclick = startTask;
+$('approve-btn').onclick = () => submitApproval(true);
+$('reject-btn').onclick = () => submitApproval(false);
+$('refresh-state').onclick = refreshState;
+$('clear-terminal').onclick = () => { terminal.innerHTML = ''; };
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) { startTask(); return; }
+  if (!approvalBanner.classList.contains('hidden')) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      submitApproval($('feedback-input').value.trim() ? false : true);
+    }
+    if (e.key === 'Escape') { submitApproval(false); }
+  }
+});
+
+// Init
+connectWS();
+refreshState();
+</script>
 </body>
 </html>
