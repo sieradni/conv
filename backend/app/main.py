@@ -280,6 +280,20 @@ async def delete_history_step(step_number: int, session_id: str = Query("default
     return {"status": "deleted" if removed else "not_found", "removed": removed, "session_id": session_id}
 
 
+@app.put("/api/task/history/{step_number}")
+async def update_history_step(step_number: int, payload: DirectTalkPayload, session_id: str = Query("default")):
+    """Update a step's observation in the history."""
+    session = registry.get(session_id)
+    if not session or not session.orchestrator:
+        raise HTTPException(status_code=404, detail="No active session")
+    state = session.orchestrator.state
+    for step in state.history:
+        if step.step_number == step_number:
+            step.observation = payload.message
+            return {"status": "updated", "step_number": step_number, "session_id": session_id}
+    raise HTTPException(status_code=404, detail=f"Step {step_number} not found")
+
+
 @app.post("/api/task/branch")
 async def branch_task(payload: BranchPayload):
     """Branch from a specific step: truncate history after step_number."""

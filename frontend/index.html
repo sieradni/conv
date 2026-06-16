@@ -99,7 +99,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <div class="shrink-0 glass border-t border-white/5 px-3 py-2 space-y-2">
       <div class="flex gap-2">
         <input id="msg-input" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50" placeholder="Task goal or message for agent...">
-        <button id="start-btn" class="px-4 py-2 bg-indigo-600/70 hover:bg-indigo-500/80 rounded-lg font-semibold text-[11px] tracking-wide transition disabled:opacity-40 whitespace-nowrap">launch</button>
+        <button id="start-btn" class="px-4 py-2 bg-indigo-600/70 hover:bg-indigo-500/80 rounded-lg font-semibold text-[11px] tracking-wide transition disabled:opacity-40 whitespace-nowrap">task</button>
         <button id="respond-btn" class="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-500/40 border border-indigo-500/30 rounded-lg text-[10px] font-bold text-indigo-300 transition whitespace-nowrap" title="Send message and prompt agent to respond">respond</button>
       </div>
       <div class="flex gap-2 items-center flex-wrap">
@@ -108,8 +108,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
         <button id="fresh-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[10px] font-bold text-slate-300 transition">fresh chat</button>
         <div class="flex items-center gap-1 text-[10px] text-slate-600 ml-auto">
           <label class="hidden sm:inline">mode:</label>
-          <select id="approval-mode" class="bg-black/40 border border-white/5 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none cursor-pointer">
-            <option value="AUTO_APPROVE">auto</option>
+          <select id="approval-mode" class="bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none focus:border-indigo-500/50 cursor-pointer appearance-none" style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%2364748b%22 d=%22M3 4.5L6 7.5L9 4.5%22/></svg>');background-repeat:no-repeat;background-position:right 4px center;padding-right:20px">
+            <option value="AUTO_APPROVE">approve</option>
             <option value="CHECK_WITH_OVERSEER">overseer</option>
             <option value="WAIT_FOR_USER" selected>user</option>
           </select>
@@ -205,6 +205,8 @@ let isRunning = false;
 let notesTimer = null;
 let currentGoal = '';
 let genStartTime = 0;
+let msgCounter = 0;
+let editingMsgId = null;
 
 // --- View Switching ---
 function switchView(view) {
@@ -433,12 +435,92 @@ function setStatus(s) {
 }
 
 function addMsg(text, color='slate-400') {
+  msgCounter++;
+  const id = 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
   const d = document.createElement('div');
-  d.className = `text-${color} text-[11px] slide-up`;
-  d.innerHTML = `<span class="text-slate-600 mr-1.5">&#9656;</span>${text}`;
+  d.className = `glass rounded-lg p-2.5 slide-up border-l-2 border-${color === 'indigo-400' ? 'indigo' : color === 'rose-400' ? 'rose' : color === 'emerald-400' ? 'emerald' : 'slate'}-500/30`;
+  d.id = id;
+  d.dataset.msg = JSON.stringify({text, color, step_number: msgCounter});
+  d.dataset.stepNumber = msgCounter;
+
+  let html = `<div class="flex items-start gap-1.5">
+    <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
+    <span class="text-${color} text-[11px] leading-relaxed flex-1">${text}</span>
+  </div>`;
+
+  // Actions row for all messages
+  html += `<div class="flex gap-1.5 items-center mt-1 pt-1 border-t border-white/5">
+    <button onclick="copyMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy message">copy</button>
+    <button onclick="editMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit message">edit</button>
+    <button onclick="deleteMsg('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Delete message">delete</button>
+    <button onclick="rerunMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Rerun this message">rerun</button>
+    <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Branch from here">branch</button>
+  </div>`;
+
+  d.innerHTML = html;
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
+}
+
+// --- Message Actions ---
+function copyMsg(id) {
+  const el = $(id); if (!el) return;
+  const msg = JSON.parse(el.dataset.msg || '{}');
+  navigator.clipboard.writeText(msg.text).catch(()=>{});
+  showToast('message copied');
+}
+
+function editMsg(id) {
+  const el = $(id); if (!el) return;
+  const msg = JSON.parse(el.dataset.msg || '{}');
+  // Extract clean text (remove prefix like "task:", "respond:", "talk:", etc.)
+  let text = msg.text;
+  const prefixes = ['launching: ', 'respond: ', 'task: ', 'talk: ', 'asked: ', 'resumed: ', 'you: ', 'error: '];
+  for (const p of prefixes) {
+    if (text.startsWith(p)) { text = text.slice(p.length); break; }
+  }
+  // Remove quotes if present
+  if (text.startsWith('"') && text.endsWith('"')) text = text.slice(1, -1);
+  $('msg-input').value = text;
+  editingMsgId = id;
+  $('respond-btn').textContent = 'update';
+  $('msg-input').focus();
+}
+
+function deleteMsg(id) {
+  const el = $(id); if (!el) return;
+  el.remove();
+  showToast('message removed');
+}
+
+function rerunMsg(id) {
+  const el = $(id); if (!el) return;
+  const msg = JSON.parse(el.dataset.msg || '{}');
+  let text = msg.text;
+  if (text.startsWith('task: ') || text.startsWith('launching: ')) {
+    text = text.replace(/^(task|launching): /, '');
+    // Launch as a new task
+    const mode = $('approval-mode').value;
+    setStatus('running');
+    isRunning = true;
+    addMsg(`launching: ${text}`, 'indigo-400');
+    fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal:text, approval_mode:mode, max_steps:9999, session_id:sessionId}) })
+      .catch(() => { setStatus('error'); isRunning = false; });
+  } else if (text.startsWith('respond: ') || text.startsWith('asked: ') || text.startsWith('talk: ') || text.startsWith('resumed: ')) {
+    text = text.replace(/^(respond|asked|talk|resumed): "/, '').replace(/"$/, '');
+    // Send as talk
+    fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+  }
+}
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'text-[10px] text-slate-500 slide-up';
+  el.textContent = msg;
+  conversation.appendChild(el);
+  scrollChat();
+  setTimeout(() => el.remove(), 2000);
 }
 
 function removeWelcome() {
@@ -542,14 +624,14 @@ function addStep(step, diagnostics) {
     ${diagStr ? `<span class="text-[9px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
   </div>`;
 
-  // Thought (collapsible, default collapsed)
+  // Thought (collapsible, default expanded)
   if (thought) {
     const tid = id + '-t';
     html += `<button onclick="toggle('${tid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5">
-      <span id="${tid}-icon" class="text-[9px]">&#9654;</span>
+      <span id="${tid}-icon" class="text-[9px]">&#9660;</span>
       <span class="font-medium">thinking</span>
     </button>
-    <div id="${tid}" class="hidden pl-3 mb-1 text-[10px] text-slate-400 italic leading-relaxed">${escapeHtml(thought)}</div>`;
+    <div id="${tid}" class="pl-3 mb-1 text-[10px] text-slate-400 italic leading-relaxed">${escapeHtml(thought)}</div>`;
   }
 
   // Args (collapsible, default collapsed)
@@ -777,6 +859,32 @@ $('respond-btn').onclick = async () => {
   const text = $('msg-input').value.trim();
   if (!text) return;
   $('msg-input').value = '';
+
+  // If editing an existing message, update it in-place
+  if (editingMsgId) {
+    const el = $(editingMsgId);
+    if (el) {
+      const msg = JSON.parse(el.dataset.msg || '{}');
+      msg.text = text;
+      el.dataset.msg = JSON.stringify(msg);
+      // Update the display text
+      const span = el.querySelector('span.text-[11px]');
+      if (span) span.textContent = text;
+      // Try to update backend history too
+      if (msg.step_number) {
+        fetch(`/api/task/history/${msg.step_number}?session_id=${sessionId}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({observation: text})
+        }).catch(() => {});
+      }
+    }
+    editingMsgId = null;
+    $('respond-btn').textContent = 'respond';
+    showToast('message updated');
+    return;
+  }
+
   // Check current status badge for paused state
   const statusText = ($('status-badge').textContent || '').trim().toLowerCase();
   if (statusText === 'paused') {
@@ -860,7 +968,10 @@ $('settings-new-session').onclick = async () => {
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.ctrlKey) { handleSend(); return; }
-  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) { e.preventDefault(); handleSend(); return; }
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input') && !approvalBanner.classList.contains('hidden')) {
+    e.preventDefault(); submitApproval(true); return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) { e.preventDefault(); $('respond-btn').click(); return; }
   if (!approvalBanner.classList.contains('hidden')) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitApproval(true); }
     if (e.key === 'Escape') { submitApproval(false); }

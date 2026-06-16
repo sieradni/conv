@@ -182,7 +182,7 @@ class AgentOrchestrator:
                     "diagnostics": diagnostics,
                 })
 
-            # Call LM Studio
+            # Call LM Studio with cancellation support
             print(f"\n[Step {self.state.current_step}] Calling LM Studio...")
             if self.ui_manager:
                 await self.ui_manager.broadcast({
@@ -191,14 +191,47 @@ class AgentOrchestrator:
                     "step_number": self.state.current_step,
                     "status": "calling"
                 })
-            try:
-                call_start = time.time()
-                response = await self.lm_client.chat_completion(
+            llm_task = asyncio.create_task(
+                self.lm_client.chat_completion(
                     model=self.model_name,
                     messages=messages,
                     temperature=0.1
                 )
-                call_duration = time.time() - call_start
+            )
+            call_start = time.time()
+            response = None
+            call_duration = 0
+            stopped_during_call = False
+            try:
+                while True:
+                    done, _ = await asyncio.wait({llm_task}, timeout=0.3)
+                    if done:
+                        response = await llm_task
+                        call_duration = time.time() - call_start
+                        break
+                    # Poll for stop during LLM call
+                    from app.session import registry as _sr
+                    _s = _sr.get(self.session_id)
+                    if _s and _s.stop_requested:
+                        llm_task.cancel()
+                        try:
+                            await llm_task
+                        except asyncio.CancelledError:
+                            pass
+                        stopped_during_call = True
+                        break
+                if stopped_during_call:
+                    raise asyncio.CancelledError("Task stopped by user")
+            except asyncio.CancelledError:
+                self.state.mark_failed("Stopped by user")
+                print(f"[-] Task stopped by user during LLM call")
+                if self.ui_manager:
+                    await self.ui_manager.broadcast({
+                        "type": "error",
+                        "session_id": self.session_id,
+                        "message": "Task stopped by user"
+                    })
+                break
             except Exception as e:
                 self.state.mark_failed(f"LM Studio API error: {str(e)}")
                 print(f"[-] LM Studio error: {str(e)}")
@@ -294,7 +327,21 @@ class AgentOrchestrator:
             print(f"[*] Thought: {thought[:100]}...")
             print(f"[*] Tool: {tool_name}")
             print(f"[*] Args: {tool_args}")
-            
+
+            # Check for stop request before executing the tool
+            from app.session import registry as _sr2
+            _s2 = _sr2.get(self.session_id)
+            if _s2 and _s2.stop_requested:
+                _s2.stop_requested = False
+                self.state.mark_failed("Stopped by user")
+                print(f"\n[-] Task stopped by user before tool execution.")
+                if self.ui_manager:
+                    await self.ui_manager.broadcast({
+                        "type": "error", "session_id": self.session_id,
+                        "message": "Task stopped by user"
+                    })
+                break
+
             # Check if this tool requires approval
             requires_approval = tool_name in ["write_file", "run_command", "finish_task", "ask_user"]
             
