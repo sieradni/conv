@@ -121,7 +121,7 @@ class ShadowSandbox:
 
         try:
             result = subprocess.run(
-                [python_path, "-m", "pytest", "test_loop.py", "test_sandbox.py",
+                [python_path, "-m", "pytest", "test_sandbox.py",
                  "-v", "--tb=short"],
                 cwd=str(test_dir),
                 capture_output=True,

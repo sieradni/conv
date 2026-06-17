@@ -1,5 +1,5 @@
 # Developer Brief: Autonomous Agent Framework
-**Status:** Phase 3 Complete | Phase 4 Ready  
+**Status:** Phase 6 Complete  
 **Technology Stack:** Python 3.14 | FastAPI | LM Studio (local) | Pydantic | asyncio
 
 ---
@@ -12,8 +12,7 @@ Autonomous agent system that can:
 - Maintain long-term state without context bloat
 - Refine its own behavior via meta-prompting
 
-**Current Scope:** Single-task execution loop with memory persistence  
-**Next Phase:** Multi-task API with web UI
+**Current Scope:** Full-stack agent framework with HSWM memory, WebSocket streaming, self-development pipeline, and web UI
 
 ---
 
@@ -23,21 +22,24 @@ Autonomous agent system that can:
 /home/sieradni/conv/agent-framework/
 ├── backend/
 │   ├── app/
+│   │   ├── main.py               # FastAPI server + chat ReAct loop
 │   │   ├── lm_client.py          # LM Studio HTTP client (async)
 │   │   ├── sandbox.py            # Secure file system isolation
-│   │   ├── state.py              # StepLog, AgentState schemas
 │   │   ├── tools.py              # ToolExecutor (file I/O, commands, memory)
 │   │   ├── prompts.py            # System prompts & tool definitions
-│   │   ├── orchestrator.py       # Main agent loop (async)
+│   │   ├── session.py            # Multi-session + WebSocket manager
+│   │   ├── memory_graph.py       # HSWM flat graph with linked nodes
+│   │   ├── sleep_flow.py         # Background memory optimization
+│   │   ├── overseer.py           # QA agent for tool call review
+│   │   ├── self_dev.py           # Shadow sandbox for self-modification
 │   │   ├── working_memory.json   # Persistent agent memory
 │   │   ├── memory_rules.md       # Memory guidelines (editable by agent)
-│   │   └── main.py               # Entry point (WIP)
+│   │   └── todo.json             # Standalone todo list
 │   ├── requirements.txt
 │   ├── venv/                     # Python virtual environment
-│   ├── test_loop.py              # Phase 2 test (factorial task)
-│   ├── test_memory_loop.py       # Phase 3 test (memory system)
-│   └── test_memory_simple.py     # Phase 3 simplified test
-├── frontend/                     # Phase 5 (placeholder)
+│   └── test_sandbox.py           # Sandbox security tests
+├── frontend/
+│   └── index.html                # Single-page SPA (Tailwind CSS)
 └── [docs/reports - see below]
 ```
 
@@ -57,27 +59,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Run a Test
+### Run Tests
 ```bash
-# Phase 2: Simple factorial task (4 steps, proven working)
-python test_loop.py
-
-# Phase 3: Memory system test
-python test_memory_loop.py        # Full integration test
-python test_memory_simple.py      # Simplified memory test
+cd backend
+source venv/bin/activate
+python test_sandbox.py            # Sandbox security boundary tests
 ```
 
-### Run Agent Programmatically
-```python
-import asyncio
-from app.orchestrator import run_agent
-
-result = asyncio.run(run_agent(
-    task_goal="Create a Python function that calculates Fibonacci numbers",
-    lm_studio_url="http://localhost:1234",
-    sandbox_dir="/tmp/agent_work",
-    max_steps=15
-))
+### Start Server
+```bash
+cd /home/sieradni/conv/agent-framework
+./run.sh
+# Opens web UI at http://localhost:8000
 ```
 
 ---
@@ -85,24 +78,21 @@ result = asyncio.run(run_agent(
 ## 🏗️ Architecture Overview
 
 ```
-User/API
+User (WebSocket / HTTP)
    ↓
-run_agent() [async wrapper]
-   ↓
-AgentOrchestrator.run_loop()
+stream_chat_response() in main.py [FastAPI endpoint]
    ├─→ Compile system prompt with memory injection
-   ├─→ Call LM Studio /v1/chat/completions
-   ├─→ Parse JSON response (strips markdown wrappers)
-   ├─→ Validate action schema
-   ├─→ Execute tool via ToolExecutor
-   │   ├─→ write_file (sandbox)
-   │   ├─→ read_file (sandbox)
+   ├─→ Call LM Studio /v1/chat/completions (streaming)
+   ├─→ Parse JSON tool call from response
+   ├─→ Execute tool via execute_chat_tool()
+   │   ├─→ read_file / write_file (sandbox)
    │   ├─→ run_command (sandbox subprocess)
-   │   ├─→ read_memory (working_memory.json)
-   │   ├─→ write_memory (working_memory.json)
-   │   └─→ refine_memory_methodology (memory_rules.md)
-   ├─→ Log step to AgentState
-   └─→ Loop until finish_task or max_steps
+   │   ├─→ read_detail / create_memory / update_memory (HSWM graph)
+   │   ├─→ read_todo / update_todo (todo.json)
+   │   ├─→ propose_change / run_self_test / deploy_change (self-dev)
+   │   └─→ finish_task / ask_user / set_goal
+   ├─→ Approval gate: AUTO_APPROVE | CHECK_WITH_OVERSEER | WAIT_FOR_USER
+   └─→ Loop until finish_task or max rounds (50)
 ```
 
 ---
@@ -130,15 +120,7 @@ class LocalSandbox:
 - All paths validated against workspace_dir
 - All 8 security tests passing
 
-### 3. **state.py** - Execution History
-```python
-class StepLog: step_number, thought, tool_name, tool_args, observation, timestamp
-class AgentState: task_goal, status, current_step, max_steps, history[]
-```
-- Tracks every decision and tool call
-- Enables debugging and audit trails
-
-### 4. **tools.py** - Tool Executor
+### 3. **tools.py** - Tool Executor
 ```python
 class ToolExecutor:
     write_file(path, content)
@@ -152,54 +134,54 @@ class ToolExecutor:
 - Delegates to sandbox for file/command ops
 - Uses Path-based sandbox isolation
 
-### 5. **orchestrator.py** - Main Agent Loop
-```python
-class AgentOrchestrator:
-    async def run_loop()         # Main execution loop
-    def _compile_prompt_with_memory()  # Dynamic memory injection
-    def _build_messages()        # Context pruning (5→2 steps)
-    def _execute_tool()          # Tool dispatcher
-```
-- Drives the complete agent lifecycle
-- Handles JSON parsing & validation
-- Recovers from errors gracefully
+### 4. **main.py** - FastAPI Server & ReAct Loop
+- All API endpoints (session, chat, memory, self-dev, notes, todos, diagnostics)
+- `stream_chat_response()` — the ReAct loop with streaming LLM calls
+- Tool call extraction & execution
+- Approval modes: AUTO_APPROVE, CHECK_WITH_OVERSEER, WAIT_FOR_USER
 
 ---
 
-## 💾 Memory System (Phase 3)
+## 🔑 Additional Components
 
-### How It Works
-1. **working_memory.json** - Agent reads/writes structured data
-   ```json
-   {
-     "project_overview": "string",
-     "facts_discovered": {},
-     "active_decisions": [],
-     "todo_list": [],
-     "completed_tasks": []
-   }
-   ```
+### **session.py** - Session Management
+- Multi-session registry with WebSocket manager
+- Per-session chat history, approval queue, pause/resume/stop controls
 
-2. **memory_rules.md** - Guidelines for memory updates (editable by agent)
+### **memory_graph.py** - HSWM Graph
+- `MemoryGraph` with linked nodes, current node tracking
+- `read_detail()`, `create_memory()`, `update_memory()`, `current_context()`
 
-3. **Meta-prompt History** - Audit trail of memory refinements
+### **overseer.py** - QA Agent
+- Reviews tool calls before execution in CHECK_WITH_OVERSEER mode
+- Returns APPROVED/REJECTED with reasoning
 
-### Dynamic Injection
-Every step:
-```
-System Prompt = Base Prompt + Memory Guidelines + Working Memory JSON
-```
+### **self_dev.py** - Self-Development Pipeline
+- `ShadowSandbox` — copies framework to temp dir, applies changes, runs tests, deploys
 
-### Context Pruning
-- **Before:** Message history included 5 previous steps
-- **After:** Message history includes only 2 previous steps
-- **Result:** ~60% token reduction per step
+### **sleep_flow.py** - Background Optimization
+- Periodic memory consolidation (HSWM graph optimization)
 
-### Key Workflow
-```
-Agent reads memory → Plans next action → Calls write_memory → Updates JSON → 
-Next step loads updated JSON → Continues with fresh context
-```
+## 💾 Memory System
+
+The framework uses a **Hierarchical Small-World Memory (HSWM)** graph:
+
+### Components
+1. **memory_graph.py** — Graph of linked memory nodes, each with title, detail, linked_ids
+2. **working_memory.json** — Serialized graph state (nodes + current_node_id)
+3. **memory_rules.md** — Guidelines for memory updates (editable by agent)
+
+### Key Operations
+- `read_detail(key)` — Retrieve a node by ID or title prefix
+- `create_memory(title, detail, linked_ids, is_root)` — Add a new node
+- `update_memory(node_id, title, detail, linked_ids)` — Modify existing node
+- `current_context()` — Returns overview of recent nodes for prompt injection
+
+### Sleep Flow
+Background optimization cycle that consolidates and prunes memory nodes:
+- Runs automatically every 3600s (configurable)
+- Can be triggered manually via `/api/memory/optimize`
+- Uses a dedicated LLM call with SLEEP_SYSTEM_PROMPT
 
 ---
 
@@ -212,61 +194,46 @@ Next step loads updated JSON → Continues with fresh context
 curl http://localhost:1234/v1/models
 ```
 
-### 2. **JSON Escaping Issues with refine_memory_methodology**
+### 2. **JSON Escaping Issues**
 - Local model struggles with JSON escaping of backslashes in markdown
-- **Workaround:** Pass simpler text or use `write_memory` to store constraints directly
-- **Not a blocker:** Core memory ops (read/write) work perfectly
+- **Workaround:** Pass simpler text to avoid escaping issues
+- **Not a blocker:** Core memory ops work perfectly
 
 ### 3. **Markdown Wrapper in LM Studio Responses**
 - Model sometimes wraps JSON in ```json ... ```
-- **Already handled:** orchestrator.py strips these automatically
-- Pattern: Checks for ```json, ```, and removes them before json.loads()
+- **Already handled:** main.py strips these automatically
 
-### 4. **Max Steps Default is 15**
-- Prevents infinite loops
-- Set higher for complex tasks
-- Current tests use 15 (sufficient for most tasks)
+### 4. **Max Steps Default is 50**
+- Prevents infinite loops in chat ReAct loop
+- Configurable per session
 
 ### 5. **Sandbox is Path-Based, Not OS-Level**
 - Uses `Path.is_relative_to()` for validation
 - Not true container isolation
 - Sufficient for preventing accidental traversal, not malicious actors
 
-### 6. **Working Memory Not Auto-Initialized**
-- First call to write_memory creates the file
-- read_memory returns empty structure if file missing
-- Memory files in `backend/app/` (not in sandbox)
-
 ---
 
 ## 🧪 Testing Workflows
 
-### Test Phase 2: Basic Agent Loop
+### Run Sandbox Tests
 ```bash
 cd backend
-python test_loop.py
+source venv/bin/activate
+python test_sandbox.py
 ```
-**Expects:** Factorial task completed in 4 steps ✅
+**Expects:** 8 sandbox security boundary tests pass ✅
 
-### Test Phase 3: Memory System
+### Manual API Testing
 ```bash
-python test_memory_loop.py    # Full test with all tools
-python test_memory_simple.py  # Simplified memory test
-```
-**Expects:** write_memory updates todo_list, read_memory retrieves it ✅
+# Check server health
+curl http://localhost:8000/api/health
 
-### Manual Testing
-```python
-# In Python REPL
-from app.orchestrator import run_agent
-import asyncio
+# Check LM Studio connection
+curl http://localhost:8000/api/lm/status
 
-result = asyncio.run(run_agent(
-    task_goal="Print hello world",
-    sandbox_dir="/tmp/test",
-    max_steps=10
-))
-print(result.state.status)
+# Create a session
+curl -X POST http://localhost:8000/api/session/create
 ```
 
 ---
@@ -275,8 +242,8 @@ print(result.state.status)
 
 | Phase | Task | Status |
 |-------|------|--------|
-| 1 | Env setup, LM client, sandbox | ✅ Complete |
-| 2 | Agent loop, tool execution | ✅ Complete |
+| 1 | Environment setup, LM client, sandbox | ✅ Complete |
+| 2 | Core agent loop, tool execution | ✅ Complete |
 | 3 | Memory system, context pruning | ✅ Complete |
 | 4 | FastAPI endpoints, session management, web UI | ✅ Complete |
 | 5 | HSWM memory graph, sleep flow | ✅ Complete |
@@ -360,7 +327,7 @@ The agent can safely modify its own codebase through a **shadow sandbox**:
 
 1. **Init shadow**: Copies the framework to a temp directory
 2. **Propose change**: Applies a file modification in the shadow
-3. **Run tests**: Executes `test_loop.py` and `test_sandbox.py` inside the shadow
+3. **Run tests**: Executes `test_sandbox.py` inside the shadow
 4. **Deploy**: Copies approved changes to the live codebase
 
 Agent tools: `propose_change`, `run_self_test`, `deploy_change`
@@ -394,21 +361,19 @@ Settings panel buttons: Init, Run Tests, Deploy, Status
 ## 📁 File Map
 
 **Core:**
-- `backend/app/main.py` — FastAPI server, all endpoints
-- `backend/app/orchestrator.py` — Agent execution loop
+- `backend/app/main.py` — FastAPI server, all endpoints + ReAct loop
 - `backend/app/tools.py` — Tool implementations
 - `backend/app/sandbox.py` — File system isolation
-- `backend/app/session.py` — Multi-session management
-- `backend/app/state.py` — Data schemas
+- `backend/app/session.py` — Multi-session management + WebSocket manager
 
 **Memory:**
 - `backend/app/memory_graph.py` — HSWM graph store
-- `backend/app/sleep_flow.py` — Offline memory optimization
+- `backend/app/sleep_flow.py` — Background memory optimization
 - `backend/app/working_memory.json` — Current memory graph state
 - `backend/app/memory_rules.md` — Memory guidelines
 
 **AI:**
-- `backend/app/lm_client.py` — LM Studio client
+- `backend/app/lm_client.py` — LM Studio client (streaming)
 - `backend/app/overseer.py` — Quality assurance agent
 - `backend/app/prompts.py` — Agent system prompts
 
@@ -455,7 +420,7 @@ Before continuing development:
 
 - [ ] Run `./run.sh` to start the server
 - [ ] Open `http://localhost:8000` in a browser
-- [ ] Run `python backend/test_loop.py` to verify agent loop
+- [ ] Run `python backend/test_sandbox.py` to verify sandbox isolation
 - [ ] Check settings panel for self-dev pipeline controls
 - [ ] Review `backend/app/self_dev.py` for shadow sandbox API
 - [ ] Review `frontend/index.html` for complete UI
@@ -465,21 +430,18 @@ Before continuing development:
 ## ❓ FAQ
 
 **Q: How do I add a new tool?**
-A: Add method to ToolExecutor in tools.py, register in prompts.py under "Available Tools", add dispatch case in orchestrator._execute_tool()
+A: Add method to ToolExecutor in tools.py, register in prompts.py under "Available Tools", add dispatch case in execute_chat_tool() in main.py
 
 **Q: How do I debug a failed step?**
-A: Check orchestrator logs for error_feedback. Failed JSON shows the parse error. Check working_memory.json for agent's context.
+A: Check the server logs for error feedback. Failed JSON shows the parse error. Check working_memory.json for agent's context.
 
-**Q: Can I increase max_steps?**
-A: Yes, change in run_agent() call. Be aware: cost = steps × tokens. Recommend 15-25 for complex tasks.
-
-**Q: Why only 2 steps in message history?**
-A: Context window optimization for local models. Long-term info stored in working_memory.json instead.
+**Q: Can I increase max rounds?**
+A: Yes, change MAX_CHAT_ROUNDS in main.py. Be aware: cost = rounds × tokens.
 
 **Q: How do I test my changes?**
-A: Create test_xyz.py in backend/, run `python test_xyz.py`. Use test_memory_loop.py as template.
+A: Run `python test_sandbox.py` for sandbox tests. Start the server and test manually via the web UI.
 
 ---
 
-**Ready to start Phase 4!** 🚀
+**All 6 phases complete!** 🚀
 

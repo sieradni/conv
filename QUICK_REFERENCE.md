@@ -48,22 +48,21 @@ Then open **http://localhost:8000** in a browser.
 ## 📂 File Map (5-Minute Read)
 
 **Start here:**
-- `DEVELOPER_BRIEF.md` ← You are here
-- `PHASE_3_REPORT.md` ← Architecture deep-dive
+- `DEVELOPER_BRIEF.md` ← Full developer documentation
+- `backend/app/main.py` ← FastAPI server + ReAct loop
 
 **Core logic:**
-- `backend/app/orchestrator.py` ← Main agent loop (START HERE for Phase 4)
+- `backend/app/main.py` ← Main agent loop + all API endpoints
 - `backend/app/tools.py` ← Tool implementations
 - `backend/app/sandbox.py` ← File isolation
 
 **Supporting:**
-- `backend/app/state.py` ← Data schemas
+- `backend/app/session.py` ← Session + WebSocket management
 - `backend/app/prompts.py` ← System prompts
-- `backend/app/lm_client.py` ← LM Studio client
+- `backend/app/lm_client.py` ← LM Studio client (streaming)
 
 **Testing:**
-- `backend/test_loop.py` ← Phase 2 test (factorial)
-- `backend/test_memory_loop.py` ← Phase 3 test (memory)
+- `backend/test_sandbox.py` ← Sandbox security boundary tests
 
 **Config:**
 - `backend/app/working_memory.json` ← Agent's persistent memory
@@ -75,35 +74,24 @@ Then open **http://localhost:8000** in a browser.
 
 ### Run a Test
 ```bash
-python test_loop.py
-# or
-python test_memory_loop.py
+cd backend
+source venv/bin/activate
+python test_sandbox.py
 ```
 
-### Create a New Test
-```python
-# new_test.py
-import asyncio
-from app.orchestrator import run_agent
+### Check API Health
+```bash
+curl http://localhost:8000/api/health
+curl http://localhost:8000/api/lm/status
+```
 
-result = asyncio.run(run_agent(
-    task_goal="Your task here",
-    sandbox_dir="/tmp/test",
-    max_steps=15
-))
-
-print(f"Status: {result.state.status}")
-print(f"Steps: {len(result.state.history)}")
+### Create a Session via API
+```bash
+curl -X POST http://localhost:8000/api/session/create
 ```
 
 ### Debug Agent Output
-```python
-# In test file after run_agent() completes:
-for step in result.state.history:
-    print(f"Step {step.step_number}: {step.tool_name}")
-    print(f"  Thought: {step.thought[:100]}...")
-    print(f"  Observation: {step.observation[:100]}...")
-```
+Watch the WebSocket stream in browser console, or check server logs.
 
 ### Check Memory State
 ```bash
@@ -170,20 +158,28 @@ Phase 1: Environment Setup
 
 Phase 2: Core Agent Loop  
   Status: ✅ COMPLETE
-  What: Orchestrator, tool execution, state tracking
-  Files: orchestrator.py, tools.py, state.py, test_loop.py
-  Tests: Factorial task ✅ PASSING
+  What: Tool execution, session management
+  Files: tools.py, session.py, main.py (ReAct loop)
 
 Phase 3: Memory & Context
   Status: ✅ COMPLETE
-  What: Persistent memory, dynamic prompts, context pruning
-  Files: working_memory.json, memory_rules.md, updated orchestrator.py
-  Tests: Memory ops ✅ PASSING (with known JSON escaping limitation)
+  What: HSWM memory graph, dynamic prompts, context pruning
+  Files: memory_graph.py, memory_rules.md, working_memory.json
 
-Phase 4: API & Queue
-  Status: 🔄 READY TO START
-  What: FastAPI endpoints, task queue, concurrent execution
-  Next: Create backend/app/api.py with POST /tasks, GET /tasks/{id}
+Phase 4: API & Web UI
+  Status: ✅ COMPLETE
+  What: FastAPI endpoints, WebSocket streaming, session management
+  Files: main.py (all endpoints), session.py, frontend/index.html
+
+Phase 5: HSWM & Sleep Flow
+  Status: ✅ COMPLETE
+  What: Hierarchical Small-World Memory, background optimization
+  Files: memory_graph.py, sleep_flow.py
+
+Phase 6: Self-Development
+  Status: ✅ COMPLETE
+  What: Shadow sandbox, self-modification pipeline
+  Files: self_dev.py, overseer.py
 ```
 
 ---
@@ -196,8 +192,9 @@ cd /home/sieradni/conv/agent-framework/backend
 source venv/bin/activate
 
 # Test
-python test_loop.py
-python test_memory_loop.py
+cd backend
+source venv/bin/activate
+python test_sandbox.py
 
 # Check LM Studio
 curl http://localhost:1234/v1/models
@@ -219,34 +216,17 @@ git log --oneline
 
 ---
 
-## 🚀 Phase 4 Quickstart
-
-When ready to build API:
-
-1. Copy `test_loop.py` as template
-2. Create `app/api.py` with FastAPI app
-3. Use `run_agent()` as task executor
-4. Add routes:
-   ```python
-   @app.post("/tasks")
-   async def submit_task(goal: str, max_steps: int = 15):
-       # Call run_agent() async
-       
-   @app.get("/tasks/{task_id}")
-   async def get_status(task_id: str):
-       # Return task status from queue
-   ```
-5. Details in DEVELOPER_BRIEF.md "Phase 4 Next Steps"
-
 ---
+
+
 
 ## 📞 Need Help?
 
-1. **Check test_loop.py** - Example of complete run
-2. **Read orchestrator.py run_loop()** - Core logic
-3. **Review PHASE_3_REPORT.md** - Detailed architecture
+1. **Check test_sandbox.py** - Example of test structure
+2. **Read main.py stream_chat_response()** - Core ReAct loop
+3. **Review DEVELOPER_BRIEF.md** - Full architecture
 4. **Look at error messages** - Usually very clear
-5. **Check working_memory.json** - Shows agent's context
+5. **Check working_memory.json** - Shows agent's memory state
 
 ---
 
