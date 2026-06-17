@@ -22,15 +22,15 @@
     },
     {
       "id": "a09347b74df2",
-      "title": "Memory Architecture & Communication Rules [root]",
-      "detail": "1. Ambiguity Handling: If a user instruction is unclear or ambiguous, always ask for clarification before proceeding. Do not assume intent.\n2. Title Priority: Important information must be placed in the 'title' of memory nodes (especially root nodes) because titles are always visible in the context window.\n3. Detail Usage: The 'detail' field should be reserved for supplementary, long-form, or secondary information that is not always needed for immediate context.\n4. Root Node Strategy: Essential, high-level information that must be constantly accessible should be marked as 'is_root'.",
+      "title": "Memory Architecture & Communication Rules",
+      "detail": "1. Ambiguity Handling: If a user instruction is unclear or ambiguous, always ask for clarification before proceeding. Do not assume intent.\n2. Title Priority: Important information must be placed in the title.\n3. Detail Visibility: Ensure that memory details are accessible/displayed to the user when relevant (as per user request).\n4. Memory Management: Consolidate overlapping information and maintain a clean, linked graph structure.",
       "linked_ids": [
         "cde9f0c99aca"
       ],
       "is_root": true,
-      "access_count": 2,
+      "access_count": 3,
       "created_at": 1781688805.666463,
-      "updated_at": 1781690916.0696
+      "updated_at": 1781691397.4624178
     }
   ],
   "current_node_id": "a09347b74df2",

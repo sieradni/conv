@@ -1,13 +1,6 @@
-# Memory Management Guidelines
-
-You are required to maintain a clean, updated record of your progress in `memory.json` using your memory tools.
-
-## Memory Best Practices:
-1. **Facts Discovered**: Store structural information here (e.g., config values, file paths, verified commands).
-2. **Active Decisions**: Document design choices or algorithms chosen for active work.
-3. **Todo List**: Keep a strict list of tasks yet to be tackled.
-4. **Completed Tasks**: Track history so you do not repeat investigations.
-
-## Guidelines:
-- Update memory frequently to prevent loss of context.
-- Keep facts concise and actionable.
+### Memory Management Rules
+1. **Ambiguity Handling**: Always ask for clarification if user intent is unclear.
+2. **Title Priority**: Place the most important information in the title.
+3. **Detail Visibility**: Ensure memory details are displayed to the user when relevant to the conversation or explicitly requested.
+4. **Consolidation**: Actively merge overlapping memories and maintain a clean, linked graph.
+5. **Root Nodes**: Ensure essential topics have clear root markers for easy navigation.

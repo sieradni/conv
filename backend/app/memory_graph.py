@@ -170,6 +170,7 @@ class MemoryGraph:
             node.detail = detail
         if linked_ids is not None:
             node.linked_ids = list(dict.fromkeys(linked_ids))
+        node.access_count = 0
         node.updated_at = time.time()
         self._save()
         return node
