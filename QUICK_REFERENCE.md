@@ -124,13 +124,7 @@ Fix: source venv/bin/activate
 Verify: which python (should be in backend/venv/)
 ```
 
-**3. JSON Parsing Fails**
-```
-Error: Invalid \escape in JSON
-Cause: Model generated invalid JSON escaping
-Fix: Model limitation - not your code. Usually refine_memory_methodology
-Workaround: Use simpler input to that tool
-```
+
 
 **4. Timeout on run_command**
 ```

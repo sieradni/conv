@@ -3,4 +3,9 @@ If you find yourself reading this for guidance on what to do, you probably shoul
 
 image rendering for markdown doesnt work(minor)
 
-look into workspace directory and 
+look into workspace directory and self development. test development capabilities.
+
+thinking level
+
+choose and switch model
+

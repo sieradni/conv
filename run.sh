@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# agentic dev framework — Quick Start
+# conv dev framework — Quick Start
 # =====================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -9,7 +9,7 @@ BACKEND_DIR="$SCRIPT_DIR/backend"
 VENV_DIR="$BACKEND_DIR/venv"
 
 echo "╔═══════════════════════════════════════════════════╗"
-echo "║       agentic dev framework — Quick Start        ║"
+echo "║       conv dev framework — Quick Start        ║"
 echo "╚═══════════════════════════════════════════════════╝"
 
 # 1. Check prerequisites

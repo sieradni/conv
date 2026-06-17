@@ -26,8 +26,9 @@ _chat_tasks: Dict[str, asyncio.Task] = {}
 
 logging.basicConfig(level=logging.INFO, format="[%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger("main")
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
-app = FastAPI(title="Agentic Dev Framework")
+app = FastAPI(title="conv dev framework")
 
 app.add_middleware(
     CORSMiddleware,

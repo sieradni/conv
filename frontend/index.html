@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>agentic | dev framework</title>
+<title>conv | dev framework</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
@@ -55,8 +55,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <!-- Header with Tabs -->
   <header class="glass shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/5 flex-nowrap overflow-x-auto">
     <div class="flex items-center gap-2 shrink-0 mr-2">
-      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-xs">A</div>
-      <span class="text-xs font-bold tracking-tight hidden sm:inline">agentic</span>
+      <span class="text-lg font-bold tracking-tight hidden sm:inline">conv</span>
     </div>
     <nav class="flex items-center gap-0.5 bg-black/30 rounded-lg p-0.5 shrink-0">
       <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-view="console">chat</button>
@@ -1494,7 +1493,7 @@ $('approval-mode-badge').onclick = async () => {
   loadApprovalMode();
   loadSleepTimerange();
   checkLmStatus();
-  setInterval(fetchTodos, 5000);
+  //setInterval(fetchTodos, 5000);
   setInterval(checkLmStatus, 10000);
 })();
 </script>
