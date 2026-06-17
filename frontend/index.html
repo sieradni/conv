@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>agentic | dev framework</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -13,6 +17,29 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .mono{font-family:'JetBrains Mono',monospace}
 .glass{background:var(--surface);border:1px solid var(--border);backdrop-filter:blur(8px)}
 .scroll{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent}
+.markdown{font-size:11px;line-height:1.5;color:#94a3b8;font-family:'Inter',sans-serif}
+.markdown p{margin:2px 0}
+.markdown ul{list-style-type:disc!important;padding-left:16px;margin:2px 0}
+.markdown ol{list-style-type:decimal!important;padding-left:16px;margin:2px 0}
+.markdown li{margin:1px 0}
+.markdown strong{font-weight:700;color:inherit}
+.markdown em{font-style:italic}
+.markdown a{color:#818cf8;text-decoration:underline}
+.markdown a:hover{color:#6366f1}
+.markdown blockquote{border-left:2px solid rgba(255,255,255,0.1);padding-left:8px;margin:4px 0;color:#64748b}
+.markdown h1,.markdown h2,.markdown h3,.markdown h4{margin:6px 0 2px;font-weight:600;color:inherit}
+.markdown h1{font-size:13px}
+.markdown h2{font-size:12px}
+.markdown h3{font-size:11px}
+.markdown h4{font-size:11px}
+.markdown code{background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;font-family:'JetBrains Mono',monospace;color:#e2e8f0;font-size:inherit}
+.markdown pre{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;overflow-x:auto;margin:4px 0;font-size:10px;font-family:'JetBrains Mono',monospace;color:#94a3b8}
+.markdown pre code{background:none;padding:0;border-radius:0;color:inherit;font-size:inherit}
+.markdown table{border-collapse:collapse;width:100%;margin:4px 0}
+.markdown th,.markdown td{border:1px solid rgba(255,255,255,0.12);padding:4px 6px;text-align:left;font-size:10px}
+.markdown th{font-weight:600;background:rgba(255,255,255,0.04);color:#e2e8f0}
+.markdown td{color:#94a3b8}
+.markdown hr{border:none;border-top:1px solid rgba(255,255,255,0.06);margin:6px 0}
 .scroll::-webkit-scrollbar{width:4px}
 .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
@@ -172,12 +199,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
         <div class="flex items-center gap-2 text-slate-400">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider">user notes</h2>
-          <span class="text-[9px] text-slate-600">(agent can read via read_user_notes)</span>
+          <span class="text-[9px] text-slate-600">(agent: read_user_notes / write_user_notes)</span>
         </div>
         <span id="notes-status" class="text-[9px] text-slate-600"></span>
       </div>
       <textarea id="notes-editor" class="flex-1 bg-black/30 text-slate-200 p-4 font-mono text-[12px] leading-relaxed border-0 outline-none resize-none scroll" placeholder="Write your notes here... The agent can read these via read_user_notes." oninput="debounceAutoSaveNotes()"></textarea>
-      <div class="px-4 py-1.5 border-t border-white/5 bg-black/20 text-[9px] text-slate-600 shrink-0">agent tool: <span class="font-mono text-indigo-400">read_user_notes</span> &middot; auto-saves on change</div>
+      <div class="px-4 py-1.5 border-t border-white/5 bg-black/20 text-[9px] text-slate-600 shrink-0">agent tools: <span class="font-mono text-indigo-400">read_user_notes</span> / <span class="font-mono text-indigo-400">write_user_notes</span> &middot; auto-saves on change</div>
     </section>
   </div>
 
@@ -233,6 +260,7 @@ let genStartTime = 0;
 let msgCounter = 0;
 let skipNextTaskMsg = false;
 let chatResponseId = null;
+let chatResponseBuffer = '';
 let thinkingResponseId = null;
 let sleepMode = false;
 
@@ -348,18 +376,20 @@ async function loadSleepTimerange() {
 // --- Session Init ---
 async function initSession() {
   const params = new URLSearchParams(location.search);
-  const existing = params.get('session');
+  let existing = params.get('session');
+  if (!existing) existing = localStorage.getItem('sessionId');
   const body = existing ? JSON.stringify({session_id:existing}) : '{}';
   try {
     const r = await fetch('/api/session/create', { method:'POST', headers:{'Content-Type':'application/json'}, body });
     const d = await r.json();
     sessionId = d.session_id;
+    localStorage.setItem('sessionId', sessionId);
+    const url = new URL(location);
+    url.searchParams.set('session', sessionId);
+    history.replaceState({}, '', url);
   } catch(_) { sessionId = 'default'; }
   $('session-label').textContent = sessionId;
   $('settings-session').textContent = sessionId;
-  const url = new URL(location);
-  url.searchParams.set('session', sessionId);
-  history.replaceState({}, '', url);
 }
 
 // --- WebSocket ---
@@ -368,7 +398,7 @@ function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const url = `${proto}//${location.host}/ws/${sessionId}`;
   socket = new WebSocket(url);
-  socket.onopen = () => setConnection(true);
+  socket.onopen = () => { setConnection(true); loadChatHistory(); };
   socket.onclose = () => { setConnection(false); setTimeout(connectWS, 2000); };
   socket.onerror = () => setConnection(false);
   socket.onmessage = e => { try { handle(JSON.parse(e.data)); } catch(_) {} };
@@ -393,6 +423,8 @@ function showGenerating(label) {
   $('generating-indicator').classList.remove('hidden');
   $('gen-timing').textContent = '';
   $('stop-btn').disabled = false;
+  $('pause-btn').disabled = false;
+  $('pause-btn').textContent = 'pause';
   scrollChat();
 }
 function updateGenerating(label, diag) {
@@ -411,6 +443,8 @@ function hideGenerating(diag) {
     setTimeout(() => { if ($('generating-indicator').classList.contains('hidden')) $('gen-timing').textContent = ''; }, 2000);
   }
   $('stop-btn').disabled = true;
+  $('pause-btn').disabled = true;
+  $('pause-btn').textContent = 'pause';
 }
 
 // --- Message Handling ---
@@ -486,7 +520,9 @@ function handle(msg) {
           if (el) {
             const span = el.querySelector('.msg-text .msg-content');
             if (span) {
-              span.textContent = msg.clean_text;
+              span.classList.add('markdown');
+              chatResponseBuffer = msg.clean_text;
+              span.innerHTML = renderMarkdown(chatResponseBuffer);
               const msgData = JSON.parse(el.dataset.msg || '{}');
               msgData.text = msg.clean_text;
               el.dataset.msg = JSON.stringify(msgData);
@@ -495,7 +531,7 @@ function handle(msg) {
         }
         const tid = 'chtool-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
         const toolArgs = msg.tool_args || {};
-        const argsStr = Object.keys(toolArgs).length ? JSON.stringify(toolArgs, null, 2) : '';
+        const argsStr = Object.keys(toolArgs).length ? Object.entries(toolArgs).map(([k,v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`).join('\n') : '';
         const diag = msg.diagnostics || {};
         const diagStr = diag.generation_time_s != null ? `${diag.generation_time_s.toFixed(2)}s | ${(diag.tokens_per_second||0).toFixed(1)} t/s | ${diag.token_count||0} tok` : '';
         const d = document.createElement('div');
@@ -504,9 +540,9 @@ function handle(msg) {
         d.innerHTML = `<div class="flex items-center gap-1.5 mb-1">
           <span class="text-[9px] text-indigo-400 font-medium">&#9881; ${msg.tool_name}</span>
           ${diagStr ? `<span class="text-[8px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
-          ${argsStr ? `<button onclick="toggle('${tid}-a')" class="text-[8px] text-slate-600 hover:text-slate-400 ml-1">args</button>` : ''}
+          ${argsStr ? `<button onclick="toggleToolArgs('${tid}')" class="text-[8px] text-slate-600 hover:text-slate-400 ml-1" id="${tid}-tbtn">hide</button>` : ''}
         </div>
-        <div id="${tid}-a" class="${argsStr ? 'hidden' : 'hidden'}"><pre class="text-[9px] text-slate-500 bg-black/30 border border-white/5 rounded p-1 mono">${argsStr}</pre></div>
+        <div id="${tid}-a" class="${argsStr ? '' : 'hidden'}"><pre class="text-[9px] text-slate-500 bg-black/30 border border-white/5 rounded p-1 mono overflow-x-auto max-w-full whitespace-pre-wrap break-all" style="max-height:200px">${escapeHtml(argsStr)}</pre></div>
         <div id="${tid}-r" class="text-[10px] text-slate-500 leading-relaxed"></div>`;
         conversation.appendChild(d);
         removeWelcome();
@@ -518,18 +554,31 @@ function handle(msg) {
         const tools = conversation.querySelectorAll('[id^="chtool-"]');
         if (tools.length > 0) {
           const last = tools[tools.length - 1];
-          const rEl = last.querySelector('[id$="-r"]');
+          const rid = last.id + '-r';
+          let rEl = document.getElementById(rid);
+          if (!rEl) rEl = last.querySelector('[id$="-r"]');
           if (rEl) {
-            rEl.textContent = msg.observation || '';
-            rEl.className = 'text-[10px] text-slate-400 leading-relaxed border-t border-white/5 pt-1 mt-1';
+            rEl.innerHTML = '';
+            const obs = msg.observation || '';
+            if (obs) {
+              const pre = document.createElement('pre');
+              pre.className = 'text-[10px] text-slate-200 leading-relaxed border-t border-white/5 pt-1 mt-1 overflow-x-auto max-w-full whitespace-pre-wrap break-all mono';
+              pre.textContent = obs;
+              rEl.appendChild(pre);
+            }
+          } else if (msg.observation) {
+            addResponseMsg(msg.observation, 'slate-300');
           }
+        } else if (msg.observation) {
+          addResponseMsg(msg.observation, 'slate-300');
         }
         fetchTodos();
       })();
       break;
     case 'chat_start':
       showGenerating('responding...');
-      if (thinkingResponseId) { const tel = $(thinkingResponseId); if (tel) tel.remove(); thinkingResponseId = null; }
+      thinkingResponseId = null;
+      chatResponseBuffer = '';
       chatResponseId = addMsgWithCursor('', 'emerald-400');
       break;
     case 'chat_reasoning_token':
@@ -540,8 +589,9 @@ function handle(msg) {
         d.className = 'glass rounded-lg p-2 slide-up border-l-2 border-amber-500/30 ml-3 my-0.5';
         d.innerHTML = `<div class="flex items-center gap-1.5 mb-1">
           <span class="text-[9px] font-medium text-amber-400">&#9881; thinking</span>
+          <button onclick="toggleThinking('${thinkingId}')" class="ml-auto text-[8px] text-slate-600 hover:text-slate-400" id="${thinkingId}-tbtn">−</button>
         </div>
-        <div class="text-[10px] text-amber-300/60 italic leading-relaxed thinking-content"></div>`;
+        <div class="text-[10px] text-amber-300/60 italic leading-relaxed thinking-content thinking-body" id="${thinkingId}-body"></div>`;
         // Insert before the chat response message
         const chatEl = chatResponseId ? $(chatResponseId) : null;
         if (chatEl) {
@@ -567,7 +617,11 @@ function handle(msg) {
         if (el) {
           const span = el.querySelector('.msg-text .msg-content');
           const cursor = el.querySelector('.msg-text .msg-cursor');
-          if (span) span.textContent += msg.token;
+          if (span) {
+            span.classList.add('markdown');
+            chatResponseBuffer += msg.token;
+            span.innerHTML = renderMarkdown(chatResponseBuffer);
+          }
           if (cursor) cursor.textContent = '...';
           scrollChat();
         }
@@ -580,7 +634,6 @@ function handle(msg) {
       break;
     case 'chat_done':
       hideGenerating(msg.diagnostics);
-      $('pause-btn').textContent = 'pause';
       if (sleepMode) {
         $('wake-btn').classList.add('hidden');
         $('msg-input').placeholder = 'Task goal or message for agent...';
@@ -593,15 +646,20 @@ function handle(msg) {
           const msgData = JSON.parse(el.dataset.msg || '{}');
           // If stopped, keep the already-streamed content — don't overwrite
           if (msg.response !== '[Stopped]') {
+            chatResponseBuffer = msg.response;
             msgData.text = msg.response;
             el.dataset.msg = JSON.stringify(msgData);
             const contentSpan = el.querySelector('.msg-text .msg-content');
-            if (contentSpan) contentSpan.textContent = msg.response;
+            if (contentSpan) {
+              contentSpan.classList.add('markdown');
+              contentSpan.innerHTML = renderMarkdown(msg.response);
+            }
           }
           const cursor = el.querySelector('.msg-text .msg-cursor');
           if (cursor) cursor.remove();
         }
         chatResponseId = null;
+        chatResponseBuffer = '';
       }
       break;
     case 'chat_paused':
@@ -748,7 +806,7 @@ function addMsgWithCursor(text, color='slate-400') {
   let html = `<div class="flex items-start gap-1.5">
     <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
     <div class="msg-text flex-1">
-      <span class="msg-content text-${color} text-[11px] leading-relaxed">${text}</span><span class="msg-cursor text-${color} text-[11px] font-bold animate-pulse">...</span>
+      <div class="msg-content markdown text-${color} text-[11px] leading-relaxed">${text}</div><span class="msg-cursor text-${color} text-[11px] font-bold animate-pulse">...</span>
     </div>
   </div>`;
 
@@ -759,12 +817,61 @@ function addMsgWithCursor(text, color='slate-400') {
   return id;
 }
 
+function addResponseMsg(text, color='emerald-400') {
+  msgCounter++;
+  const id = 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+  const d = document.createElement('div');
+  d.className = `glass rounded-lg p-2.5 slide-up border-l-2 border-${color === 'emerald-400' ? 'emerald' : color === 'indigo-400' ? 'indigo' : 'slate'}-500/30`;
+  d.id = id;
+  d.dataset.msg = JSON.stringify({text, color, step_number: msgCounter});
+  d.dataset.stepNumber = msgCounter;
+  d.innerHTML = `<div class="flex items-start gap-1.5">
+    <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
+    <div class="msg-text flex-1">
+      <div class="msg-content markdown text-${color} text-[11px] leading-relaxed">${renderMarkdown(text)}</div>
+    </div>
+  </div>
+  <div class="flex gap-1.5 items-center mt-1 pt-1 border-t border-white/5">
+    <button onclick="copyMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">copy</button>
+    <button onclick="editMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">edit</button>
+    <button onclick="deleteMsg('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded">delete</button>
+    <button onclick="rerunMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">rerun</button>
+    <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded">branch</button>
+  </div>`;
+  conversation.appendChild(d);
+  removeWelcome();
+  scrollChat();
+  return id;
+}
+
+let historyLoaded = false;
+async function loadChatHistory() {
+  if (historyLoaded) return;
+  historyLoaded = true;
+  try {
+    const r = await fetch(`/api/session/${sessionId}/history`);
+    const d = await r.json();
+    const history = d.history || [];
+    for (const msg of history) {
+      if (msg.role === 'user') {
+        addMsg(`you: ${msg.content}`, 'indigo-400');
+      } else if (msg.role === 'assistant') {
+        addResponseMsg(msg.content, 'emerald-400');
+      }
+    }
+  } catch(_) {}
+}
+
 function removeWelcome() {
   const w = $('welcome-msg');
   if (w) w.remove();
 }
 
-function scrollChat() { conversation.scrollTop = conversation.scrollHeight; }
+function scrollChat() {
+  const threshold = 60;
+  const isNearBottom = conversation.scrollHeight - conversation.scrollTop - conversation.clientHeight < threshold;
+  if (isNearBottom) conversation.scrollTop = conversation.scrollHeight;
+}
 
 // --- Todo List ---
 function updatedTaskDisplay() {
@@ -821,9 +928,49 @@ function toggle(elId) {
   if (icon) icon.innerHTML = el.classList.contains('hidden') ? '&#9654;' : '&#9660;';
 }
 
+function toggleThinking(id) {
+  const body = $(id + '-body');
+  const btn = $(id + '-tbtn');
+  if (!body) return;
+  body.classList.toggle('hidden');
+  if (btn) btn.textContent = body.classList.contains('hidden') ? '+' : '−';
+}
+
+function toggleToolArgs(tid) {
+  const el = $(tid + '-a');
+  const btn = $(tid + '-tbtn');
+  if (!el) return;
+  el.classList.toggle('hidden');
+  if (btn) btn.textContent = el.classList.contains('hidden') ? 'show' : 'hide';
+}
+
 function escapeHtml(s) {
   if (!s) return '';
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  if (typeof katex !== 'undefined') {
+    const codeBlocks = [];
+    text = text.replace(/(```[\s\S]*?```|`[^`]+`)/g, m => { codeBlocks.push(m); return `\x00CODE${codeBlocks.length-1}\x00`; });
+    text = text.replace(/\$\$(.+?)\$\$/gs, (_, eq) => {
+      try { return katex.renderToString(eq.trim(), { displayMode:true, throwOnError:false }); }
+      catch(e) { return `[LaTeX error]`; }
+    });
+    text = text.replace(/\$(.+?)\$/g, (_, eq) => {
+      try { return katex.renderToString(eq.trim(), { displayMode:false, throwOnError:false }); }
+      catch(e) { return `$${eq}$`; }
+    });
+    text = text.replace(/\x00CODE(\d+)\x00/g, (_, n) => codeBlocks[parseInt(n)] || '');
+  }
+  const html = marked.parse(text, { breaks:true, gfm:true });
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS:['p','br','strong','em','code','pre','ul','ol','li','a','h1','h2','h3','h4','h5','h6','blockquote','hr','span','div','table','thead','tbody','tr','th','td','del','ins','sub','sup'],
+    ALLOWED_ATTR:['href','target','class','id'],
+    ADD_TAGS:['math','semantics','annotation','mrow','mi','mn','mo','msup','msub','mfrac','msqrt','mover','munder','mtext','annotation-xml'],
+    ADD_ATTR:['xmlns','encoding']
+  });
 }
 
 // --- Step Indicator (placeholder while generating) ---
@@ -1153,11 +1300,12 @@ $('respond-btn').onclick = async () => {
     }).catch(err => addMsg(`sleep start error: ${err.message}`, 'rose-400'));
     return;
   }
-  // Normal respond — empty input is allowed (just triggers agent)
+  // Normal respond — empty input triggers agent to continue
   showGenerating('responding...');
-  if (text) addMsg(`you: ${text}`, 'indigo-400');
+  const msgToSend = text || '__CONTINUE__';
+  addMsg(`you: ${text || '(continue)'}`, 'indigo-400');
   try {
-    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msgToSend, session_id:sessionId}) });
     if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'error'}`, 'rose-400'); }
   } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); }
 };
@@ -1183,6 +1331,7 @@ $('fresh-btn').onclick = async () => {
     const r = await fetch('/api/session/create', {method:'POST'});
     const d = await r.json();
     sessionId = d.session_id;
+    localStorage.setItem('sessionId', sessionId);
     $('session-label').textContent = sessionId;
     $('settings-session').textContent = sessionId;
     const url = new URL(location); url.searchParams.set('session', sessionId); history.replaceState({},'',url);
@@ -1192,6 +1341,8 @@ $('fresh-btn').onclick = async () => {
     $('todo-items').innerHTML = '';
     currentGoal = '';
     isRunning = false;
+    sleepMode = false;
+    $('msg-input').placeholder = 'Task goal or message for agent...';
     hideGenerating();
     hideApproval();
     setStatus('idle');
@@ -1243,6 +1394,7 @@ $('sd-status-btn').onclick = sdStatus;
 $('settings-new-session').onclick = async () => {
   const r = await fetch('/api/session/create', {method:'POST'}); const d = await r.json();
   sessionId = d.session_id;
+  localStorage.setItem('sessionId', sessionId);
   $('session-label').textContent = sessionId;
   $('settings-session').textContent = sessionId;
   const url = new URL(location); url.searchParams.set('session', sessionId); history.replaceState({},'',url);

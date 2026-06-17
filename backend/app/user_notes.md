@@ -1,1 +1,1 @@
-save session.
+read detail still need to display too user(should work for agent)

@@ -1,5 +1,4 @@
 # Developer Brief: Autonomous Agent Framework
-**Status:** Phase 6 Complete  
 **Technology Stack:** Python 3.14 | FastAPI | LM Studio (local) | Pydantic | asyncio
 
 ---
@@ -32,7 +31,7 @@ Autonomous agent system that can:
 │   │   ├── sleep_flow.py         # Background memory optimization
 │   │   ├── overseer.py           # QA agent for tool call review
 │   │   ├── self_dev.py           # Shadow sandbox for self-modification
-│   │   ├── working_memory.json   # Persistent agent memory
+│   │   ├── memory.json   # Persistent agent memory
 │   │   ├── memory_rules.md       # Memory guidelines (editable by agent)
 │   │   └── todo.json             # Standalone todo list
 │   ├── requirements.txt
@@ -88,7 +87,7 @@ stream_chat_response() in main.py [FastAPI endpoint]
    │   ├─→ read_file / write_file (sandbox)
    │   ├─→ run_command (sandbox subprocess)
    │   ├─→ read_detail / create_memory / update_memory (HSWM graph)
-   │   ├─→ read_todo / update_todo (todo.json)
+    │   ├─→ update_todo (todo.json — todo list auto-injected into context)
    │   ├─→ propose_change / run_self_test / deploy_change (self-dev)
    │   └─→ finish_task / ask_user / set_goal
    ├─→ Approval gate: AUTO_APPROVE | CHECK_WITH_OVERSEER | WAIT_FOR_USER
@@ -168,7 +167,7 @@ The framework uses a **Hierarchical Small-World Memory (HSWM)** graph:
 
 ### Components
 1. **memory_graph.py** — Graph of linked memory nodes, each with title, detail, linked_ids
-2. **working_memory.json** — Serialized graph state (nodes + current_node_id)
+2. **memory.json** — Serialized graph state (nodes + current_node_id)
 3. **memory_rules.md** — Guidelines for memory updates (editable by agent)
 
 ### Key Operations
@@ -238,18 +237,6 @@ curl -X POST http://localhost:8000/api/session/create
 
 ---
 
-## 📊 Current Status
-
-| Phase | Task | Status |
-|-------|------|--------|
-| 1 | Environment setup, LM client, sandbox | ✅ Complete |
-| 2 | Core agent loop, tool execution | ✅ Complete |
-| 3 | Memory system, context pruning | ✅ Complete |
-| 4 | FastAPI endpoints, session management, web UI | ✅ Complete |
-| 5 | HSWM memory graph, sleep flow | ✅ Complete |
-| 6 | Self-Development Pipeline, frontend UX polish | ✅ Complete |
-
----
 
 ## 🚀 Running the Server
 
@@ -369,7 +356,7 @@ Settings panel buttons: Init, Run Tests, Deploy, Status
 **Memory:**
 - `backend/app/memory_graph.py` — HSWM graph store
 - `backend/app/sleep_flow.py` — Background memory optimization
-- `backend/app/working_memory.json` — Current memory graph state
+- `backend/app/memory.json` — Current memory graph state
 - `backend/app/memory_rules.md` — Memory guidelines
 
 **AI:**
@@ -424,24 +411,3 @@ Before continuing development:
 - [ ] Check settings panel for self-dev pipeline controls
 - [ ] Review `backend/app/self_dev.py` for shadow sandbox API
 - [ ] Review `frontend/index.html` for complete UI
-
----
-
-## ❓ FAQ
-
-**Q: How do I add a new tool?**
-A: Add method to ToolExecutor in tools.py, register in prompts.py under "Available Tools", add dispatch case in execute_chat_tool() in main.py
-
-**Q: How do I debug a failed step?**
-A: Check the server logs for error feedback. Failed JSON shows the parse error. Check working_memory.json for agent's context.
-
-**Q: Can I increase max rounds?**
-A: Yes, change MAX_CHAT_ROUNDS in main.py. Be aware: cost = rounds × tokens.
-
-**Q: How do I test my changes?**
-A: Run `python test_sandbox.py` for sandbox tests. Start the server and test manually via the web UI.
-
----
-
-**All 6 phases complete!** 🚀
-

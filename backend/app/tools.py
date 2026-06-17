@@ -148,20 +148,6 @@ class ToolExecutor:
             })
             raise Exception(error_msg)
     
-    def read_todo(self) -> Dict[str, Any]:
-        """Read the todo items from the todo file.
-
-        Returns:
-            Dict with 'todo_items' list and 'completed_items' list
-        """
-        todo_path = Path(__file__).parent / "todo.json"
-        if not todo_path.exists():
-            return {"todo_items": [], "completed_items": []}
-        try:
-            return json.loads(todo_path.read_text(encoding="utf-8"))
-        except Exception:
-            return {"todo_items": [], "completed_items": []}
-
     def update_todo(self, key: str, value: Any) -> str:
         """Update the todo items file.
 
@@ -182,9 +168,6 @@ class ToolExecutor:
         data[key] = value
         todo_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return f"✓ Updated {key}"
-
-    def read_memory(self) -> Dict[str, Any]:
-        return self.read_todo()
 
     def write_memory(self, key: str, value: Any) -> str:
         return self.update_todo(key, value)
@@ -266,7 +249,7 @@ New Rules Applied:
         graph = get_memory_graph()
         detail = graph.read_detail(node_id, sleep_mode=sleep_mode)
         if detail is not None:
-            return f"Detail for node {node_id[:8]}:\n{detail}"
+            return f"Detail for node {node_id}:\n{detail}"
         return f"Node '{node_id}' not found."
 
     def create_memory(
@@ -334,6 +317,12 @@ New Rules Applied:
         if notes_path.exists():
             return notes_path.read_text(encoding="utf-8")
         return "# User Notes\n\nNo notes yet."
+
+    def write_user_notes(self, content: str) -> str:
+        """Write to the user's persistent notes scratchpad."""
+        notes_path = Path(__file__).parent / "user_notes.md"
+        notes_path.write_text(content, encoding="utf-8")
+        return "✓ Notes updated"
 
 
 

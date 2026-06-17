@@ -1,12 +1,4 @@
 {
   "todo_items": [],
-  "completed_items": [],
-  "todo_list": [
-    "define board representation",
-    "implement move validation",
-    "check for win/draw conditions",
-    "add game loop and player input",
-    "write unit tests"
-  ],
-  "completed_tasks": []
+  "completed_items": []
 }

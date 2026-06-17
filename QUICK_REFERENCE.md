@@ -65,7 +65,7 @@ Then open **http://localhost:8000** in a browser.
 - `backend/test_sandbox.py` ← Sandbox security boundary tests
 
 **Config:**
-- `backend/app/working_memory.json` ← Agent's persistent memory
+- `backend/app/memory.json` ← Agent's persistent memory
 - `backend/app/memory_rules.md` ← Agent's memory guidelines
 
 ---
@@ -95,13 +95,13 @@ Watch the WebSocket stream in browser console, or check server logs.
 
 ### Check Memory State
 ```bash
-cat backend/app/working_memory.json
+cat backend/app/memory.json
 # Shows what agent has learned
 ```
 
 ### Clear Memory (Fresh Start)
 ```bash
-rm backend/app/working_memory.json
+rm backend/app/memory.json
 rm backend/app/memory_rules.md
 # Next run will reinitialize
 ```
@@ -146,41 +146,6 @@ Cause: Path escaping attempt blocked
 This is correct behavior - security feature
 ```
 
----
-
-## 📊 Project Status At-A-Glance
-
-```
-Phase 1: Environment Setup
-  Status: ✅ COMPLETE
-  What: LM Studio client, sandbox, verification
-  Files: lm_client.py, sandbox.py, verify_setup.py
-
-Phase 2: Core Agent Loop  
-  Status: ✅ COMPLETE
-  What: Tool execution, session management
-  Files: tools.py, session.py, main.py (ReAct loop)
-
-Phase 3: Memory & Context
-  Status: ✅ COMPLETE
-  What: HSWM memory graph, dynamic prompts, context pruning
-  Files: memory_graph.py, memory_rules.md, working_memory.json
-
-Phase 4: API & Web UI
-  Status: ✅ COMPLETE
-  What: FastAPI endpoints, WebSocket streaming, session management
-  Files: main.py (all endpoints), session.py, frontend/index.html
-
-Phase 5: HSWM & Sleep Flow
-  Status: ✅ COMPLETE
-  What: Hierarchical Small-World Memory, background optimization
-  Files: memory_graph.py, sleep_flow.py
-
-Phase 6: Self-Development
-  Status: ✅ COMPLETE
-  What: Shadow sandbox, self-modification pipeline
-  Files: self_dev.py, overseer.py
-```
 
 ---
 
@@ -200,10 +165,10 @@ python test_sandbox.py
 curl http://localhost:1234/v1/models
 
 # View memory
-cat app/working_memory.json
+cat app/memory.json
 
 # Reset memory
-rm app/working_memory.json
+rm app/memory.json
 
 # View logs (if added)
 tail -f execution.log
@@ -215,20 +180,4 @@ git log --oneline
 ```
 
 ---
-
----
-
-
-
-## 📞 Need Help?
-
-1. **Check test_sandbox.py** - Example of test structure
-2. **Read main.py stream_chat_response()** - Core ReAct loop
-3. **Review DEVELOPER_BRIEF.md** - Full architecture
-4. **Look at error messages** - Usually very clear
-5. **Check working_memory.json** - Shows agent's memory state
-
----
-
-**Good luck! 🚀**
 

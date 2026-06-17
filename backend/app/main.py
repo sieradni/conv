@@ -144,6 +144,14 @@ async def session_info(session_id: str = Query("default")):
     return session.to_dict()
 
 
+@app.get("/api/session/{session_id}/history")
+async def session_history(session_id: str):
+    session = registry.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    return {"history": getattr(session, 'chat_history', [])}
+
+
 # ── Approval mode ────────────────────────────────────────────────
 
 class ApprovalModePayload(BaseModel):
@@ -184,7 +192,7 @@ async def submit_approval(payload: UserApprovalPayload):
 
 # ── Chat (ReAct Loop) ────────────────────────────────────────────
 
-REVIEW_TOOLS = {"read_file", "write_file", "run_command", "set_goal", "finish_task", "propose_change", "run_self_test", "deploy_change"}
+REVIEW_TOOLS = {"read_file", "write_file", "run_command", "set_goal", "finish_task", "propose_change", "run_self_test", "deploy_change", "write_user_notes"}
 MAX_CHAT_ROUNDS = 50
 
 
@@ -510,14 +518,13 @@ async def execute_chat_tool(tool_name: str, tool_args: Dict[str, Any], session_i
             return str(executor.write_file(tool_args.get("path", ""), tool_args.get("content", "")))
         elif tool_name == "run_command":
             return str(executor.run_command(tool_args.get("command", "")))
-        elif tool_name == "read_todo":
-            result = executor.read_todo()
-            return json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
         elif tool_name == "update_todo":
             result = executor.update_todo(tool_args.get("key", ""), tool_args.get("value", ""))
             return str(result)
         elif tool_name == "read_user_notes":
             return str(executor.read_user_notes())
+        elif tool_name == "write_user_notes":
+            return str(executor.write_user_notes(tool_args.get("content", "")))
         elif tool_name == "set_goal":
             goal = tool_args.get("goal", "")
             session_obj = registry.get(session_id)
@@ -564,6 +571,11 @@ async def execute_chat_tool(tool_name: str, tool_args: Dict[str, Any], session_i
         elif tool_name == "finish_task":
             summary = tool_args.get("summary", "")
             return f"[FINISH_TASK:{summary}]"
+        elif tool_name == "refine_memory_methodology":
+            return executor.refine_memory_methodology(
+                tool_args.get("new_rules", ""),
+                tool_args.get("reflection", "")
+            )
         else:
             return f"Unknown tool: {tool_name}"
     except Exception as e:
@@ -611,6 +623,10 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
         await manager.broadcast({"type": "chat_done", "session_id": session_id, "response": "[Error: Session not found]"})
         return
 
+    # Reset stale stop flag from previous run
+    session.stop_requested = False
+    session.pause_requested = False
+
     from app.prompts import SLEEP_SYSTEM_PROMPT
     system_prompt = SLEEP_SYSTEM_PROMPT if sleep_mode else CHAT_SYSTEM_PROMPT
 
@@ -619,9 +635,26 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
     # For sleep mode, start fresh — no history carryover
     if not sleep_mode:
         messages.extend(history)
-    messages.append({"role": "user", "content": message})
+    # If user pressed continue (empty respond) and last message is from user,
+    # don't add another user message — let LLM respond to the existing one
+    if message == "__CONTINUE__" and history and history[-1]["role"] == "user":
+        pass
+    else:
+        content = "Please continue." if message == "__CONTINUE__" else message
+        messages.append({"role": "user", "content": content})
+        # Save user messages to chat_history for page reload
+        session.chat_history.append({"role": "user", "content": content})
 
     clean_text = ""
+
+    # ── Build initial memory context (static across rounds) ──────
+    graph = get_memory_graph()
+    if sleep_mode:
+        now_ts = time.time()
+        earliest = min((n.created_at for n in graph._nodes.values()), default=now_ts)
+        memory_context = graph.generate_sleep_context(earliest, now_ts)
+    else:
+        memory_context = graph.current_context()
 
     await manager.broadcast({"type": "chat_start", "session_id": session_id, "message": message})
 
@@ -630,9 +663,24 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
             await manager.broadcast({"type": "chat_done", "session_id": session_id, "response": "[Stopped]"})
             return
 
-        # ── Inject current memory context into system message ────
-        memory_context = get_memory_graph().current_context()
-        messages[0] = {"role": "system", "content": system_prompt + "\n\n## Memory Context (always accessible; use read_detail for full details)\n" + memory_context}
+        # ── Inject todo context into system message (refreshed each round) ──
+        todo_context = ""
+        todo_path = Path(__file__).parent / "todo.json"
+        if todo_path.exists():
+            try:
+                todo_data = json.loads(todo_path.read_text(encoding="utf-8"))
+                todo_items = todo_data.get("todo_items", [])
+                completed_items = todo_data.get("completed_items", [])
+                parts = []
+                if todo_items:
+                    parts.append("Pending: " + json.dumps(todo_items))
+                if completed_items:
+                    parts.append("Completed: " + json.dumps(completed_items))
+                if parts:
+                    todo_context = "\n\n## Current Todo List\n" + "\n".join(parts)
+            except Exception:
+                pass
+        messages[0] = {"role": "system", "content": system_prompt + "\n\n## Memory Context (always accessible; use read_detail for full details)\n" + memory_context + todo_context}
 
         # ── Streaming LLM call ──────────────────────────────────
         t0 = time.time()
@@ -644,7 +692,7 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
 
         try:
             async for token_type, token in lm_client.chat_completion_stream(model=model_name, messages=messages, temperature=0.7):
-                if session.stop_requested:
+                if session.stop_requested and not sleep_mode:
                     raise asyncio.CancelledError()
 
                 if token_type == "reasoning":
@@ -693,7 +741,7 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
             await manager.broadcast({"type": "chat_paused", "session_id": session_id})
             await session.resume_event.wait()
             session.resume_event.clear()
-            if session.stop_requested:
+            if session.stop_requested and not sleep_mode:
                 await manager.broadcast({"type": "chat_done", "session_id": session_id, "response": "[Stopped]"})
                 return
 
@@ -817,9 +865,10 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
         if not observation:
             observation = await execute_chat_tool(tool_name, tool_args, session_id, sleep_mode=sleep_mode)
 
+        obs_trunc = 600 if tool_name != "read_detail" else 100000
         await manager.broadcast({
             "type": "chat_tool_result", "session_id": session_id,
-            "tool_name": tool_name, "observation": observation[:600]
+            "tool_name": tool_name, "observation": observation[:obs_trunc]
         })
 
         # ── Special tool handling ────────────────────────────────────
@@ -867,8 +916,10 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
             session.current_goal = new_goal
             await manager.broadcast({"type": "goal_set", "session_id": session_id, "goal": new_goal})
 
+        obs_trunc = 100000 if tool_name == "read_detail" else 1500
         messages.append({"role": "assistant", "content": content_buffer})
-        messages.append({"role": "user", "content": f"Tool {tool_name} returned:\n{observation[:1500]}\n\nContinue your response naturally."})
+        continuation = "Continue your memory consolidation work." if sleep_mode else "Continue your response naturally."
+        messages.append({"role": "user", "content": f"Tool {tool_name} returned:\n{observation[:obs_trunc]}\n\n{continuation}"})
 
     await manager.broadcast({"type": "chat_done", "session_id": session_id, "response": "[I've completed what I can do. Feel free to ask for more.]"})
 
@@ -983,7 +1034,7 @@ async def sleep_wake(payload: CreateSessionPayload = None):
 async def get_state(session_id: str = Query("default")):
     try:
         base = os.path.dirname(os.path.abspath(__file__))
-        memory_path = os.path.join(base, "working_memory.json")
+        memory_path = os.path.join(base, "memory.json")
         rules_path = os.path.join(base, "memory_rules.md")
 
         memory = {}

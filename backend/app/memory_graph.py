@@ -39,16 +39,23 @@ class MemoryGraph:
 
     def __init__(self, path: str = ""):
         if not path:
-            path = str(Path(__file__).parent / "working_memory.json")
+            path = str(Path(__file__).parent / "memory.json")
         self.path = Path(path)
         self._nodes: Dict[str, MemoryNode] = {}
         self._current_node_id: Optional[str] = None
         self._load_or_init()
 
     def _load_or_init(self):
-        if self.path.exists():
-            with open(self.path) as f:
-                data = json.load(f)
+        if self.path.exists() and self.path.stat().st_size > 0:
+            try:
+                with open(self.path) as f:
+                    data = json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                logger.warning(f"Corrupt memory file {self.path}, starting fresh")
+                self._nodes = {}
+                self._current_node_id = None
+                self._save()
+                return
             for node_data in data.get("nodes", []):
                 node_data = self._migrate_node(node_data)
                 try:
@@ -200,9 +207,9 @@ class MemoryGraph:
             for lid in node.linked_ids:
                 linked = self._nodes.get(lid)
                 if linked:
-                    lines.append(f"  [{lid[:8]}] {linked.title}")
+                    lines.append(f"  [{lid}] {linked.title}")
                 else:
-                    lines.append(f"  [{lid[:8]}] (deleted)")
+                    lines.append(f"  [{lid}] (deleted)")
         else:
             lines.append("Links: none")
         lines.append(f"Created: {_fmt_time(node.created_at)}")
@@ -219,10 +226,10 @@ class MemoryGraph:
         roots = [n for n in self._nodes.values() if n.is_root]
         if roots:
             for r in sorted(roots, key=lambda n: n.created_at):
-                parts.append(f"  [root {r.id[:8]}] {r.title}")
+                parts.append(f"  [root {r.id}] {r.title}")
         current = self.current_node
         if current:
-            parts.append(f"  ► [current {current.id[:8]}] {current.title}")
+            parts.append(f"  ► [current {current.id}] {current.title}")
         if not parts:
             return "[no memory]"
         return "\n".join(parts)
@@ -240,9 +247,8 @@ class MemoryGraph:
 
     def generate_sleep_context(self, start_time: float, end_time: float) -> str:
         """Show all nodes in the time range flatly, grouped with linked neighbors."""
-        # Floor to integer seconds so sub-second precision doesn't exclude items
         lo = int(start_time)
-        hi = int(end_time)
+        hi = int(end_time) + 1  # ceil so nodes at end_time are included
 
         in_range = [
             self._nodes[nid] for nid, n in self._nodes.items()
@@ -262,7 +268,7 @@ class MemoryGraph:
             tag_str = (" [" + ", ".join(tags) + "]") if tags else ""
 
             result.append(
-                f"[{node.id[:8]}] {node.title}{tag_str} | "
+                f"[{node.id}] {node.title}{tag_str} | "
                 f"{detail[:200]} | "
                 f"links: {len(node.linked_ids)} | "
                 f"access: {node.access_count} | "
@@ -275,7 +281,7 @@ class MemoryGraph:
                 for lid in node.linked_ids:
                     linked = self._nodes.get(lid)
                     if linked:
-                        label = f"[{lid[:8]}] {linked.title}"
+                        label = f"[{lid}] {linked.title}"
                         if lid not in in_range_set:
                             label += " (outside range)"
                     else:
