@@ -39,10 +39,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     </nav>
     <div class="flex-1 min-w-[8px]"></div>
     <div class="flex items-center gap-2 shrink-0">
+      <span id="approval-mode-badge" class="badge cursor-pointer bg-amber-500/10 text-amber-400 border-amber-500/30" title="click to cycle approval mode">WAIT</span>
+      <span id="lm-badge" class="badge bg-slate-800 text-slate-500 border border-white/5" title="LM Studio">LM ○</span>
       <span id="session-label" class="text-[9px] font-mono text-slate-600 bg-white/5 px-1.5 py-0.5 rounded hidden sm:inline" title="session id">--</span>
-      <div id="status-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
-        <span class="pulse-dot bg-slate-400"></span><span class="hidden sm:inline">idle</span><span class="sm:hidden">-</span>
-      </div>
       <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
         <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
       </div>
@@ -60,6 +59,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
           <div class="flex-1 min-w-0 space-y-1.5">
             <p id="approval-title" class="text-[11px] font-semibold text-amber-300">approval required</p>
             <p id="approval-thought" class="text-[10px] text-slate-400 italic leading-relaxed"></p>
+            <pre id="approval-args" class="hidden text-[9px] text-slate-500 bg-black/40 border border-white/5 rounded p-1.5 overflow-x-auto font-mono"></pre>
             <div class="flex gap-1.5">
               <input id="feedback-input" type="text" class="flex-1 bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 transition min-w-0" placeholder="answer or feedback...">
               <button id="approve-btn" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-semibold transition whitespace-nowrap">send</button>
@@ -72,7 +72,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 
     <!-- Conversation Area -->
     <div id="conversation" class="flex-1 scroll px-3 py-2 space-y-1.5">
-      <div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. set a goal and launch a task.</div>
+      <div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>
     </div>
 
     <!-- Generating Indicator -->
@@ -98,51 +98,71 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     <!-- Input & Controls (always at bottom) -->
     <div class="shrink-0 glass border-t border-white/5 px-3 py-2 space-y-2">
       <div class="flex gap-2">
-        <input id="msg-input" type="text" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50" placeholder="Task goal or message for agent...">
-        <button id="start-btn" class="px-4 py-2 bg-indigo-600/70 hover:bg-indigo-500/80 rounded-lg font-semibold text-[11px] tracking-wide transition disabled:opacity-40 whitespace-nowrap">task</button>
-        <button id="respond-btn" class="px-3 py-2 bg-indigo-600/30 hover:bg-indigo-500/40 border border-indigo-500/30 rounded-lg text-[10px] font-bold text-indigo-300 transition whitespace-nowrap" title="Send message and prompt agent to respond">respond</button>
+        <textarea id="msg-input" rows="1" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 resize-none" placeholder="Task goal or message for agent..."></textarea>
+        <div class="flex flex-col gap-1">
+          <button id="send-btn" class="px-3 py-1 bg-slate-600/30 hover:bg-slate-600/50 rounded-lg text-[10px] font-semibold text-slate-400 transition whitespace-nowrap" title="Send message without triggering agent (Enter)">send</button>
+          <button id="respond-btn" class="px-3 py-1 bg-indigo-600/70 hover:bg-indigo-500/80 rounded-lg font-semibold text-[10px] tracking-wide transition disabled:opacity-40 whitespace-nowrap" title="Trigger agent response (Ctrl+Enter)">respond</button>
+        </div>
       </div>
       <div class="flex gap-2 items-center flex-wrap">
         <button id="stop-btn" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
         <button id="pause-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
+        <button id="wake-btn" class="hidden px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition" title="End sleep mode">wake</button>
         <button id="fresh-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[10px] font-bold text-slate-300 transition">fresh chat</button>
-        <div class="flex items-center gap-1 text-[10px] text-slate-600 ml-auto">
-          <label class="hidden sm:inline">mode:</label>
-          <select id="approval-mode" class="bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-300 focus:outline-none focus:border-indigo-500/50 cursor-pointer appearance-none" style="background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%2364748b%22 d=%22M3 4.5L6 7.5L9 4.5%22/></svg>');background-repeat:no-repeat;background-position:right 4px center;padding-right:20px">
-            <option value="AUTO_APPROVE">approve</option>
-            <option value="CHECK_WITH_OVERSEER">overseer</option>
-            <option value="WAIT_FOR_USER" selected>user</option>
-          </select>
-
-        </div>
       </div>
     </div>
   </div>
 
   <!-- Memory View -->
   <div id="panel-memory" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
-    <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
-        <div class="flex items-center gap-2 text-slate-400">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider">memory graph</h2>
+    <div class="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 shrink-0 self-start">
+      <button class="mem-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-memview="nodes">memory nodes</button>
+      <button class="mem-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-memview="sleep">sleep context</button>
+    </div>
+    <!-- Memory Nodes sub-panel -->
+    <div id="memview-nodes" class="flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">nodes</h2>
+          </div>
+          <div class="flex gap-2">
+            <span id="mem-count" class="text-[9px] text-slate-600 self-center">0 nodes</span>
+            <button id="mem-refresh-btn" class="px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[9px] font-bold text-slate-400 transition">refresh</button>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button id="mem-optimize-btn" class="px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded text-[9px] font-bold text-indigo-400 transition">optimize</button>
-          <button id="mem-refresh-btn" class="px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[9px] font-bold text-slate-400 transition">refresh</button>
+        <div class="flex-1 scroll p-3">
+          <pre id="mem-list" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap"></pre>
         </div>
-      </div>
-      <div class="flex-1 scroll p-3">
-        <div class="flex gap-2 mb-3 flex-wrap">
-          <button id="mtab-graph" class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">graph</button>
-          <button id="mtab-rules" class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 border border-transparent">rules</button>
-          <button id="mtab-neighbors" class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 border border-transparent">neighbors</button>
+      </section>
+    </div>
+    <!-- Sleep Context sub-panel -->
+    <div id="memview-sleep" class="hidden flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">sleep context</h2>
+          </div>
         </div>
-        <pre id="mem-graph" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap"></pre>
-        <pre id="mem-rules" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
-        <pre id="mem-neighbors" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap hidden"></pre>
-      </div>
-    </section>
+        <div class="flex-1 scroll p-3 flex flex-col gap-2">
+          <div class="flex gap-2 items-center flex-wrap">
+            <span class="text-[9px] text-slate-500">From (UTC):</span>
+            <input id="sleep-from" type="text" placeholder="YYYY-MM-DD HH:MM" class="bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 w-36">
+            <span class="text-[9px] text-slate-500">To (UTC):</span>
+            <input id="sleep-to" type="text" placeholder="YYYY-MM-DD HH:MM" class="bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 w-36">
+            <button id="sleep-gen-btn" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">generate context</button>
+          </div>
+          <pre id="sleep-output" class="bg-black/40 rounded-lg p-3 text-[10px] text-slate-500 mono leading-relaxed min-h-[60px] max-h-64 overflow-y-auto overflow-x-auto whitespace-pre-wrap">No context generated yet.</pre>
+          <div class="flex gap-2 items-center flex-wrap border-t border-white/5 pt-3 mt-1">
+            <span class="text-[9px] text-slate-500">Optional guidance:</span>
+            <input id="sleep-guidance" type="text" placeholder="e.g. remove obsolete memories, add info about the chair" class="flex-1 bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-amber-500/50">
+            <button id="sleep-flow-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[9px] font-bold text-amber-400 transition">run sleep flow</button>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 
   <!-- Notes View -->
@@ -170,6 +190,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
       </div>
       <div class="flex-1 scroll p-4 space-y-5">
         <div>
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Approval Mode</h3>
+          <p class="text-[10px] text-slate-500 mb-2">Click the badge in the top navbar to cycle modes.</p>
+          <span class="text-[9px] text-slate-600">Current: <span id="approval-mode-display" class="font-mono text-indigo-400">WAIT_FOR_USER</span></span>
+        </div>
+        <div class="border-t border-white/5 pt-4">
           <h3 class="text-[11px] font-bold text-slate-400 mb-2">Self-Development Pipeline</h3>
           <p class="text-[10px] text-slate-500 mb-2">The agent can safely modify its own codebase through a shadow sandbox. Changes are tested before deployment.</p>
           <div class="flex gap-2 flex-wrap">
@@ -206,7 +231,10 @@ let notesTimer = null;
 let currentGoal = '';
 let genStartTime = 0;
 let msgCounter = 0;
-let editingMsgId = null;
+let skipNextTaskMsg = false;
+let chatResponseId = null;
+let thinkingResponseId = null;
+let sleepMode = false;
 
 // --- View Switching ---
 function switchView(view) {
@@ -220,8 +248,24 @@ function switchView(view) {
       : 'nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition';
   });
   if (view === 'notes') loadNotes();
-  if (view === 'memory') loadMemoryGraph();
+  if (view === 'memory') { loadMemoryGraph(); switchMemView('nodes'); }
 }
+
+// --- Memory sub-tab switching ---
+function switchMemView(subview) {
+  document.querySelectorAll('[id^="memview-"]').forEach(p => p.classList.add('hidden'));
+  const panel = $(`memview-${subview}`);
+  if (panel) panel.classList.remove('hidden');
+  document.querySelectorAll('.mem-subtab').forEach(t => {
+    const isActive = t.dataset.memview === subview;
+    t.className = isActive
+      ? 'mem-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+      : 'mem-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition';
+  });
+  if (subview === 'nodes') loadMemoryGraph();
+  if (subview === 'sleep') loadSleepTimerange();
+}
+document.querySelectorAll('.mem-subtab').forEach(t => t.addEventListener('click', () => switchMemView(t.dataset.memview)));
 
 // --- Notes (auto-save) ---
 async function loadNotes() {
@@ -242,52 +286,63 @@ async function saveNotes(silent) {
 }
 
 // --- Memory Graph ---
-async function loadMemoryGraph(tab) {
+async function loadMemoryGraph() {
   try {
     const r = await fetch('/api/memory'); const d = await r.json();
-    $('mem-graph').textContent = JSON.stringify(d, null, 2);
-    if (d.neighborhood) {
-      let txt = '';
-      const cur = d.neighborhood.current;
-      if (cur) txt += `CURRENT: ${cur.title}  (access: ${cur.access_count})\n`;
-      if (d.neighborhood.children && d.neighborhood.children.length) {
-        txt += '\nCHILDREN:\n';
-        d.neighborhood.children.forEach(c => { txt += `  ${c.has_deeper_detail?'▼':' '} ${c.title} (${(c.id||'').slice(0,8)})\n`; });
-      }
-      if (d.neighborhood.links && d.neighborhood.links.length) {
-        txt += '\nLINKS:\n';
-        d.neighborhood.links.forEach(l => { txt += `  ↔ ${l.title} (${(l.id||'').slice(0,8)})\n`; });
-      }
-    }
-    if (tab) switchMtab(tab);
+    const nodes = d.nodes || [];
+    const currentId = d.current_node_id;
+    const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+    $('mem-count').textContent = `${nodes.length} nodes`;
+    let txt = '';
+    nodes.forEach(n => {
+      const isCurrent = n.id === currentId;
+      const marker = isCurrent ? '►' : ' ';
+      const detail = (n.detail||'').trim() ? n.detail : 'No further details';
+      const linkedNames = (n.linked_ids||[]).map(lid => {
+        const ln = nodeMap[lid];
+        return ln ? `[${lid.slice(0,8)}] ${ln.title}` : `[${lid.slice(0,8)}] (unknown)`;
+      }).join(', ') || 'none';
+      const tags = [];
+      if (n.is_root) tags.push('root');
+      if (isCurrent) tags.push('CURRENT');
+      const tagStr = tags.length ? ` [${tags.join(', ')}]` : '';
+      txt += `${marker} [${n.id.slice(0,8)}] ${n.title}${tagStr}\n`;
+      txt += `  ID: ${n.id}\n`;
+      txt += `  Detail: ${detail}\n`;
+      txt += `  Links: ${linkedNames}\n`;
+      txt += `  Access: ${n.access_count} | Created: ${fmtUtc(n.created_at)} | Updated: ${fmtUtc(n.updated_at)}\n\n`;
+    });
+    $('mem-list').textContent = txt || '[no memories]';
   } catch(_) {}
 }
-function switchMtab(tab) {
-  ['mem-graph','mem-rules','mem-neighbors'].forEach(id => $(id)?.classList.add('hidden'));
-  $(`mem-${tab}`)?.classList.remove('hidden');
-  ['mtab-graph','mtab-rules','mtab-neighbors'].forEach(id => {
-    const el = $(id); if (!el) return;
-    const act = id === `mtab-${tab}`;
-    el.className = act
-      ? 'px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-      : 'px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 border border-transparent';
-  });
-  if (tab === 'rules') {
-    fetch('/api/state').then(r=>r.json()).then(d => { $('mem-rules').textContent = d.rules||'[no rules]'; }).catch(()=>{});
-  } else if (tab === 'neighbors') {
-    fetch('/api/memory').then(r=>r.json()).then(d => {
-      let txt = '';
-      if (d.neighborhood) {
-        ['current','children','links','root'].forEach(k => {
-          if (k==='current' && d.neighborhood.current) txt += `CURRENT: ${d.neighborhood.current.title}  id: ${d.neighborhood.current.id}\n`;
-          else if (k==='children' && d.neighborhood.children?.length) d.neighborhood.children.forEach(c => { txt += `CHILD: ${c.title}  id: ${c.id}\n`; });
-          else if (k==='links' && d.neighborhood.links?.length) d.neighborhood.links.forEach(l => { txt += `LINK: ${l.title}  id: ${l.id}\n`; });
-          else if (k==='root' && d.root) txt += `ROOT: ${d.root.title}  id: ${d.root.id}\n`;
-        });
-      }
-      $('mem-neighbors').textContent = txt||'[empty]';
-    }).catch(()=>{});
-  }
+
+function fmtUtc(ts) {
+  const d = new Date(ts * 1000);
+  return d.getUTCFullYear() + '-' +
+    String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+    String(d.getUTCDate()).padStart(2,'0') + ' ' +
+    String(d.getUTCHours()).padStart(2,'0') + ':' +
+    String(d.getUTCMinutes()).padStart(2,'0') + ':' +
+    String(d.getUTCSeconds()).padStart(2,'0') + ' UTC';
+}
+
+function parseUtcDatetime(str) {
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/);
+  if (!m) return NaN;
+  return Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5]) / 1000;
+}
+
+async function loadSleepTimerange() {
+  try {
+    const r = await fetch('/api/memory'); const d = await r.json();
+    const nodes = d.nodes || [];
+    if (nodes.length === 0) return;
+    const times = nodes.map(n => n.created_at);
+    const min = Math.min(...times);
+    const max = Math.max(...times);
+    $('sleep-from').value = fmtUtc(min).slice(0, 16);
+    $('sleep-to').value = fmtUtc(max).slice(0, 16);
+  } catch(_) {}
 }
 
 // --- Session Init ---
@@ -337,16 +392,25 @@ function showGenerating(label) {
   $('gen-status').textContent = label || 'generating...';
   $('generating-indicator').classList.remove('hidden');
   $('gen-timing').textContent = '';
+  $('stop-btn').disabled = false;
   scrollChat();
 }
-function updateGenerating(label) {
+function updateGenerating(label, diag) {
   const elapsed = ((Date.now() - genStartTime) / 1000).toFixed(1);
   $('gen-status').textContent = label || 'generating...';
-  $('gen-timing').textContent = `${elapsed}s`;
+  if (diag && diag.tokens_per_second) {
+    $('gen-timing').textContent = `${elapsed}s | ${diag.tokens_per_second.toFixed(1)} t/s | ${diag.token_count || 0} tok`;
+  } else {
+    $('gen-timing').textContent = `${elapsed}s`;
+  }
 }
 function hideGenerating(diag) {
   $('generating-indicator').classList.add('hidden');
-  if (diag) updateDiag(diag);
+  if (diag) {
+    $('gen-timing').textContent = `${(diag.generation_time_s || 0).toFixed(2)}s | ${(diag.tokens_per_second || 0).toFixed(1)} t/s | ${diag.token_count || 0} tok`;
+    setTimeout(() => { if ($('generating-indicator').classList.contains('hidden')) $('gen-timing').textContent = ''; }, 2000);
+  }
+  $('stop-btn').disabled = true;
 }
 
 // --- Message Handling ---
@@ -355,16 +419,16 @@ function handle(msg) {
   switch (msg.type) {
     case 'step_update':
       hideGenerating(msg.diagnostics);
-      addStep(msg.step, msg.diagnostics);
+      addStep(msg.step, msg.diagnostics, !!msg.step.streaming);
       fetchTodos();
       break;
     case 'step_start':
-      addMsg(`step ${msg.step_number}`, 'indigo-400');
       showGenerating(`step ${msg.step_number}...`);
+      addStepIndicator(msg.step_number);
       break;
     case 'status_update':
       setStatus(msg.status === 'RUNNING' ? 'running' : msg.status.toLowerCase());
-      if (msg.goal) { currentGoal = msg.goal; addMsg(`task: ${msg.goal}`, 'slate-400'); updatedTaskDisplay(); }
+      if (msg.goal) { currentGoal = msg.goal; if (!skipNextTaskMsg) addMsg(`task: ${msg.goal}`, 'slate-400'); skipNextTaskMsg = false; updatedTaskDisplay(); }
       isRunning = msg.status === 'RUNNING';
       if (msg.status !== 'RUNNING') hideGenerating();
       fetchTodos();
@@ -389,8 +453,20 @@ function handle(msg) {
     case 'overseer_review_start':
       updateGenerating('overseer reviewing...');
       break;
+    case 'overseer_review_token':
+      if (chatResponseId) {
+        const el = $(chatResponseId);
+        if (el) {
+          const span = el.querySelector('.msg-text .msg-content');
+          const cursor = el.querySelector('.msg-text .msg-cursor');
+          if (span) span.textContent += msg.token;
+          if (cursor) cursor.textContent = '...';
+          scrollChat();
+        }
+      }
+      break;
     case 'overseer_review':
-      hideGenerating();
+      hideGenerating(msg.diagnostics);
       addOverseerReview(msg);
       break;
     case 'awaiting_user_approval':
@@ -402,7 +478,137 @@ function handle(msg) {
       hideApproval();
       addMsg(`you: ${msg.approved ? 'approved' : 'rejected'}${msg.feedback ? ' ('+msg.feedback+')' : ''}`, msg.approved ? 'emerald-400' : 'rose-400');
       break;
-    case 'ping': break;
+    case 'chat_tool':
+      (function() {
+        // Update clean cumulative text (all text before tool call JSONs)
+        if (msg.clean_text !== undefined && chatResponseId) {
+          const el = $(chatResponseId);
+          if (el) {
+            const span = el.querySelector('.msg-text .msg-content');
+            if (span) {
+              span.textContent = msg.clean_text;
+              const msgData = JSON.parse(el.dataset.msg || '{}');
+              msgData.text = msg.clean_text;
+              el.dataset.msg = JSON.stringify(msgData);
+            }
+          }
+        }
+        const tid = 'chtool-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+        const toolArgs = msg.tool_args || {};
+        const argsStr = Object.keys(toolArgs).length ? JSON.stringify(toolArgs, null, 2) : '';
+        const diag = msg.diagnostics || {};
+        const diagStr = diag.generation_time_s != null ? `${diag.generation_time_s.toFixed(2)}s | ${(diag.tokens_per_second||0).toFixed(1)} t/s | ${diag.token_count||0} tok` : '';
+        const d = document.createElement('div');
+        d.id = tid;
+        d.className = 'glass rounded-lg p-2 slide-up border-l-2 border-indigo-500/30 ml-3 my-0.5';
+        d.innerHTML = `<div class="flex items-center gap-1.5 mb-1">
+          <span class="text-[9px] text-indigo-400 font-medium">&#9881; ${msg.tool_name}</span>
+          ${diagStr ? `<span class="text-[8px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
+          ${argsStr ? `<button onclick="toggle('${tid}-a')" class="text-[8px] text-slate-600 hover:text-slate-400 ml-1">args</button>` : ''}
+        </div>
+        <div id="${tid}-a" class="${argsStr ? 'hidden' : 'hidden'}"><pre class="text-[9px] text-slate-500 bg-black/30 border border-white/5 rounded p-1 mono">${argsStr}</pre></div>
+        <div id="${tid}-r" class="text-[10px] text-slate-500 leading-relaxed"></div>`;
+        conversation.appendChild(d);
+        removeWelcome();
+        scrollChat();
+      })();
+      break;
+    case 'chat_tool_result':
+      (function() {
+        const tools = conversation.querySelectorAll('[id^="chtool-"]');
+        if (tools.length > 0) {
+          const last = tools[tools.length - 1];
+          const rEl = last.querySelector('[id$="-r"]');
+          if (rEl) {
+            rEl.textContent = msg.observation || '';
+            rEl.className = 'text-[10px] text-slate-400 leading-relaxed border-t border-white/5 pt-1 mt-1';
+          }
+        }
+        fetchTodos();
+      })();
+      break;
+    case 'chat_start':
+      showGenerating('responding...');
+      if (thinkingResponseId) { const tel = $(thinkingResponseId); if (tel) tel.remove(); thinkingResponseId = null; }
+      chatResponseId = addMsgWithCursor('', 'emerald-400');
+      break;
+    case 'chat_reasoning_token':
+      if (!thinkingResponseId) {
+        const thinkingId = 'thinking-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+        const d = document.createElement('div');
+        d.id = thinkingId;
+        d.className = 'glass rounded-lg p-2 slide-up border-l-2 border-amber-500/30 ml-3 my-0.5';
+        d.innerHTML = `<div class="flex items-center gap-1.5 mb-1">
+          <span class="text-[9px] font-medium text-amber-400">&#9881; thinking</span>
+        </div>
+        <div class="text-[10px] text-amber-300/60 italic leading-relaxed thinking-content"></div>`;
+        // Insert before the chat response message
+        const chatEl = chatResponseId ? $(chatResponseId) : null;
+        if (chatEl) {
+          conversation.insertBefore(d, chatEl);
+        } else {
+          conversation.appendChild(d);
+        }
+        removeWelcome();
+        thinkingResponseId = thinkingId;
+      }
+      {
+        const el = $(thinkingResponseId);
+        if (el) {
+          const contentEl = el.querySelector('.thinking-content');
+          if (contentEl) contentEl.textContent += msg.token;
+          scrollChat();
+        }
+      }
+      break;
+    case 'chat_token':
+      if (chatResponseId) {
+        const el = $(chatResponseId);
+        if (el) {
+          const span = el.querySelector('.msg-text .msg-content');
+          const cursor = el.querySelector('.msg-text .msg-cursor');
+          if (span) span.textContent += msg.token;
+          if (cursor) cursor.textContent = '...';
+          scrollChat();
+        }
+      }
+      break;
+    case 'chat_stream_diag':
+      if (msg.diagnostics) {
+        updateGenerating('generating...', msg.diagnostics);
+      }
+      break;
+    case 'chat_done':
+      hideGenerating(msg.diagnostics);
+      $('pause-btn').textContent = 'pause';
+      if (sleepMode) {
+        $('wake-btn').classList.add('hidden');
+        $('msg-input').placeholder = 'Task goal or message for agent...';
+        sleepMode = false;
+      }
+      fetchTodos();
+      if (chatResponseId) {
+        const el = $(chatResponseId);
+        if (el) {
+          const msgData = JSON.parse(el.dataset.msg || '{}');
+          // If stopped, keep the already-streamed content — don't overwrite
+          if (msg.response !== '[Stopped]') {
+            msgData.text = msg.response;
+            el.dataset.msg = JSON.stringify(msgData);
+            const contentSpan = el.querySelector('.msg-text .msg-content');
+            if (contentSpan) contentSpan.textContent = msg.response;
+          }
+          const cursor = el.querySelector('.msg-text .msg-cursor');
+          if (cursor) cursor.remove();
+        }
+        chatResponseId = null;
+      }
+      break;
+    case 'chat_paused':
+      addMsg('paused — click resume to continue', 'amber-400');
+      $('pause-btn').textContent = 'resume';
+      $('pause-btn').disabled = false;
+      break;
     case 'error':
       hideGenerating();
       addMsg(`error: ${msg.message}`, 'rose-400');
@@ -414,24 +620,9 @@ function handle(msg) {
 function updateDiag(d) { /* per-step diag shown in step card */ }
 
 function setStatus(s) {
-  const badge = $('status-badge');
-  const colors = {
-    idle: ['bg-slate-800','text-slate-400','bg-slate-500'], running: ['bg-indigo-500/10','text-indigo-400','bg-indigo-400'],
-    completed: ['bg-emerald-500/10','text-emerald-400','bg-emerald-400'], failed: ['bg-rose-500/10','text-rose-400','bg-rose-500'],
-    error: ['bg-rose-500/10','text-rose-400','bg-rose-500'], paused: ['bg-amber-500/10','text-amber-400','bg-amber-400'],
-    stopped: ['bg-rose-500/10','text-rose-400','bg-rose-500'],
-  };
-  const c = colors[s] || colors.idle;
-  badge.className = `badge ${c[0]} ${c[1]} border border-white/5`;
-  const dotEl = badge.querySelector('.pulse-dot');
-  if (dotEl) dotEl.className = `pulse-dot ${c[2]}`;
-  const label = badge.childNodes.length >= 3 ? badge.childNodes[2] : null;
-  if (label) label.textContent = s;
-  else badge.innerHTML = `<span class="pulse-dot ${c[2]}"></span> ${s}`;
-  $('start-btn').disabled = s === 'running';
-  $('stop-btn').disabled = s !== 'running' && s !== 'paused';
-  $('pause-btn').disabled = s !== 'running';
-  // talk button always enabled
+  const running = s === 'running' || s === 'paused';
+  $('stop-btn').disabled = !running;
+  $('pause-btn').disabled = !running;
 }
 
 function addMsg(text, color='slate-400') {
@@ -445,7 +636,9 @@ function addMsg(text, color='slate-400') {
 
   let html = `<div class="flex items-start gap-1.5">
     <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
-    <span class="text-${color} text-[11px] leading-relaxed flex-1">${text}</span>
+    <div class="msg-text flex-1">
+      <span class="text-${color} text-[11px] leading-relaxed">${text}</span>
+    </div>
   </div>`;
 
   // Actions row for all messages
@@ -461,6 +654,7 @@ function addMsg(text, color='slate-400') {
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
+  return id;
 }
 
 // --- Message Actions ---
@@ -474,43 +668,62 @@ function copyMsg(id) {
 function editMsg(id) {
   const el = $(id); if (!el) return;
   const msg = JSON.parse(el.dataset.msg || '{}');
-  // Extract clean text (remove prefix like "task:", "respond:", "talk:", etc.)
   let text = msg.text;
   const prefixes = ['launching: ', 'respond: ', 'task: ', 'talk: ', 'asked: ', 'resumed: ', 'you: ', 'error: '];
   for (const p of prefixes) {
     if (text.startsWith(p)) { text = text.slice(p.length); break; }
   }
-  // Remove quotes if present
   if (text.startsWith('"') && text.endsWith('"')) text = text.slice(1, -1);
-  $('msg-input').value = text;
-  editingMsgId = id;
-  $('respond-btn').textContent = 'update';
-  $('msg-input').focus();
+
+  const container = el.querySelector('.msg-text');
+  if (!container) return;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = text;
+  input.className = 'bg-black/60 border border-indigo-500/50 rounded px-2 py-1 text-[11px] text-slate-200 w-full focus:outline-none';
+  container.innerHTML = '';
+  container.appendChild(input);
+  input.focus();
+  input.select();
+
+  const save = () => {
+    const newText = input.value.trim();
+    const displayText = newText || text;
+    if (newText && newText !== text) {
+      msg.text = displayText;
+      el.dataset.msg = JSON.stringify(msg);
+    }
+    const span = document.createElement('span');
+    span.className = `text-${msg.color} text-[11px] leading-relaxed`;
+    span.textContent = displayText;
+    container.innerHTML = '';
+    container.appendChild(span);
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { save(); }
+  });
+  input.addEventListener('blur', save);
 }
 
 function deleteMsg(id) {
   const el = $(id); if (!el) return;
-  el.remove();
-  showToast('message removed');
+  el.innerHTML = `<div class="flex items-center gap-1.5">
+    <span class="text-slate-600 text-[11px] shrink-0">&#9656;</span>
+    <span class="text-[11px] text-slate-600 italic">deleted</span>
+  </div>`;
 }
 
 function rerunMsg(id) {
   const el = $(id); if (!el) return;
   const msg = JSON.parse(el.dataset.msg || '{}');
   let text = msg.text;
-  if (text.startsWith('task: ') || text.startsWith('launching: ')) {
-    text = text.replace(/^(task|launching): /, '');
-    // Launch as a new task
-    const mode = $('approval-mode').value;
-    setStatus('running');
-    isRunning = true;
-    addMsg(`launching: ${text}`, 'indigo-400');
-    fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal:text, approval_mode:mode, max_steps:9999, session_id:sessionId}) })
-      .catch(() => { setStatus('error'); isRunning = false; });
-  } else if (text.startsWith('respond: ') || text.startsWith('asked: ') || text.startsWith('talk: ') || text.startsWith('resumed: ')) {
+  if (text.startsWith('respond: ') || text.startsWith('asked: ') || text.startsWith('talk: ') || text.startsWith('resumed: ')) {
     text = text.replace(/^(respond|asked|talk|resumed): "/, '').replace(/"$/, '');
-    // Send as talk
-    fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+    $('msg-input').value = text;
+    $('respond-btn').click();
   }
 }
 
@@ -521,6 +734,29 @@ function showToast(msg) {
   conversation.appendChild(el);
   scrollChat();
   setTimeout(() => el.remove(), 2000);
+}
+
+function addMsgWithCursor(text, color='slate-400') {
+  msgCounter++;
+  const id = 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
+  const d = document.createElement('div');
+  d.className = `glass rounded-lg p-2.5 slide-up border-l-2 border-${color === 'indigo-400' ? 'indigo' : color === 'rose-400' ? 'rose' : color === 'emerald-400' ? 'emerald' : 'slate'}-500/30`;
+  d.id = id;
+  d.dataset.msg = JSON.stringify({text, color, step_number: msgCounter});
+  d.dataset.stepNumber = msgCounter;
+
+  let html = `<div class="flex items-start gap-1.5">
+    <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
+    <div class="msg-text flex-1">
+      <span class="msg-content text-${color} text-[11px] leading-relaxed">${text}</span><span class="msg-cursor text-${color} text-[11px] font-bold animate-pulse">...</span>
+    </div>
+  </div>`;
+
+  d.innerHTML = html;
+  conversation.appendChild(d);
+  removeWelcome();
+  scrollChat();
+  return id;
 }
 
 function removeWelcome() {
@@ -545,8 +781,8 @@ async function fetchTodos() {
   try {
     const r = await fetch('/api/todos');
     const d = await r.json();
-    const items = d.todo_list || [];
-    const completed = d.completed_tasks || [];
+    const items = d.todo_items || [];
+    const completed = d.completed_items || [];
     const panel = $('todo-panel');
     const list = $('todo-items');
     if (items.length === 0 && completed.length === 0) {
@@ -559,7 +795,7 @@ async function fetchTodos() {
     items.forEach((item, i) => {
       const li = document.createElement('li');
       li.className = 'text-[10px] text-slate-300 flex items-start gap-1.5';
-      li.innerHTML = `<span class="text-indigo-400 shrink-0 mt-0.5">&#8226;</span><span>${escapeHtml(typeof item === 'string' ? item : (item.title || item.task || JSON.stringify(item)))}</span>`;
+      li.innerHTML = `<span class="text-indigo-400 shrink-0 mt-0.5">&#8226;</span><span>${escapeHtml(typeof item === 'string' ? item : JSON.stringify(item))}</span>`;
       list.appendChild(li);
     });
     if (completed.length > 0 && items.length > 0) {
@@ -571,7 +807,7 @@ async function fetchTodos() {
     completed.forEach(item => {
       const li = document.createElement('li');
       li.className = 'text-[10px] text-slate-500 flex items-start gap-1.5';
-      li.innerHTML = `<span class="text-emerald-500 shrink-0 mt-0.5">&#10003;</span><span>${escapeHtml(typeof item === 'string' ? item : (item.title || item.task || JSON.stringify(item)))}</span>`;
+      li.innerHTML = `<span class="text-emerald-500 shrink-0 mt-0.5">&#10003;</span><span>${escapeHtml(typeof item === 'string' ? item : JSON.stringify(item))}</span>`;
       list.appendChild(li);
     });
   } catch(_) {}
@@ -590,8 +826,25 @@ function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// --- Step Indicator (placeholder while generating) ---
+function addStepIndicator(stepNumber) {
+  const sid = `step-indicator-${stepNumber}`;
+  if ($(sid)) return;
+  const d = document.createElement('div');
+  d.id = sid;
+  d.className = 'glass rounded-lg p-3 slide-up border-l-2 border-indigo-500/40';
+  d.dataset.stepNumber = stepNumber;
+  d.innerHTML = `<div class="flex items-center gap-2">
+    <span class="text-[9px] font-bold text-slate-600 bg-white/5 px-1.5 py-0.5 rounded">step ${stepNumber}</span>
+    <span class="text-[10px] text-slate-500 italic">generating...</span>
+  </div>`;
+  conversation.appendChild(d);
+  removeWelcome();
+  scrollChat();
+}
+
 // --- Add Step (Core) ---
-function addStep(step, diagnostics) {
+function addStep(step, diagnostics, streaming) {
   const sn = step.step_number || (conversation.querySelectorAll('[id^="step-"]').length + 1);
   const toolName = step.tool_name || 'unknown';
   const thought = step.thought || '';
@@ -609,6 +862,35 @@ function addStep(step, diagnostics) {
     ? `${diag.generation_time_s.toFixed(2)}s | ${(diag.tokens_per_second||0).toFixed(1)} t/s | ${diag.token_count||0} tok`
     : '';
 
+  // If streaming, update existing step element in-place (don't recreate)
+  const existingEl = conversation.querySelector(`[data-step-number="${sn}"]`);
+  if (existingEl) {
+    if (streaming) {
+      const isPlaceholder = !existingEl.querySelector('.step-thought');
+      if (isPlaceholder) {
+        // Replace placeholder with a proper streaming step element
+        const indicatorId = `step-indicator-${sn}`;
+        const indicator = $(indicatorId);
+        if (indicator) indicator.remove();
+        existingEl.remove();
+      } else {
+        const tEl = existingEl.querySelector('.step-thought');
+        if (tEl) tEl.textContent = escapeHtml(thought ? thought.slice(0,500) : '');
+        const nEl = existingEl.querySelector('.step-tool-name');
+        if (nEl) nEl.textContent = toolName;
+        const aEl = existingEl.querySelector('.step-args');
+        if (aEl) aEl.textContent = argsStr;
+        const dEl = existingEl.querySelector('.step-diag');
+        if (dEl && diagStr) dEl.textContent = diagStr;
+        scrollChat();
+        return;
+      }
+    } else {
+      // Final update: remove the streaming element so we create a fresh complete one
+      existingEl.remove();
+    }
+  }
+
   const id = 'step-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
 
   const d = document.createElement('div');
@@ -620,46 +902,35 @@ function addStep(step, diagnostics) {
   // Header
   let html = `<div class="flex items-center gap-2 mb-1.5 flex-wrap">
     <span class="text-[9px] font-bold text-slate-600 bg-white/5 px-1.5 py-0.5 rounded">step ${sn}</span>
-    <span class="text-[11px] font-bold text-${toolColor}-400 mono">${toolName}</span>
-    ${diagStr ? `<span class="text-[9px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
+    <span class="text-[11px] font-bold text-${toolColor}-400 mono step-tool-name">${escapeHtml(toolName)}</span>
+    ${diagStr ? `<span class="text-[9px] text-slate-600 font-mono ml-auto step-diag">${diagStr}</span>` : ''}
   </div>`;
 
-  // Thought (collapsible, default expanded)
-  if (thought) {
-    const tid = id + '-t';
-    html += `<button onclick="toggle('${tid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5">
-      <span id="${tid}-icon" class="text-[9px]">&#9660;</span>
-      <span class="font-medium">thinking</span>
-    </button>
-    <div id="${tid}" class="pl-3 mb-1 text-[10px] text-slate-400 italic leading-relaxed">${escapeHtml(thought)}</div>`;
-  }
+  // Thinking (always visible)
+  html += `<div class="mb-1">
+    <div class="text-[9px] font-medium text-slate-600 mb-0.5">thinking</div>
+    <div class="text-[10px] text-slate-400 italic leading-relaxed pl-2 border-l border-white/10 step-thought">${escapeHtml(thought ? thought.slice(0,500) : '')}</div>
+  </div>`;
 
-  // Args (collapsible, default collapsed)
+  // Arguments (always visible if present)
   if (argsStr) {
-    const aid = id + '-a';
-    html += `<button onclick="toggle('${aid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5">
-      <span id="${aid}-icon" class="text-[9px]">&#9654;</span>
-      <span class="font-medium">arguments</span>
-    </button>
-    <div id="${aid}" class="hidden mb-1">
-      <pre class="bg-black/30 border border-white/5 rounded p-1.5 text-[9px] text-slate-500 mono overflow-x-auto">${argsStr}</pre>
+    html += `<div class="mb-1">
+      <div class="text-[9px] font-medium text-slate-600 mb-0.5">arguments</div>
+      <pre class="bg-black/30 border border-white/5 rounded p-1.5 text-[9px] text-slate-500 mono overflow-x-auto step-args">${argsStr}</pre>
     </div>`;
   }
 
-  // Observation/Result (shown expanded by default, collapsible)
-  if (obs) {
-    const oid = id + '-o';
-    html += `<button onclick="toggle('${oid}')" class="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 w-full text-left mb-0.5 mt-0.5">
-      <span id="${oid}-icon" class="text-[9px]">&#9660;</span>
-      <span class="font-medium">result</span>
-    </button>
-    <div id="${oid}" class="mb-1">
-      <div class="text-[10px] text-slate-500 pl-1 border-l-2 border-${toolColor}-500/30 py-1 whitespace-pre-wrap leading-relaxed">${escapeHtml(obs)}</div>
+  // Output (shows only when available and not mid-streaming)
+  if (obs && !streaming) {
+    const obsClass = isError ? 'text-rose-400' : isFinish ? 'text-emerald-400' : 'text-slate-300';
+    html += `<div class="mb-1">
+      <div class="text-[9px] font-medium text-slate-600 mb-0.5">result</div>
+      <div class="text-[11px] ${obsClass} pl-2 border-l-2 border-${toolColor}-500/30 py-1 whitespace-pre-wrap leading-relaxed">${escapeHtml(obs)}</div>
     </div>`;
   }
 
-  // Actions row (only for real tool steps, not system messages)
-  if (!isSystem) {
+  // Actions row (only for complete steps, not during streaming)
+  if (!isSystem && !streaming) {
     html += `<div class="flex gap-1.5 items-center mt-1.5 pt-1.5 border-t border-white/5">
       <button onclick="copyStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy step data">copy</button>
       <button onclick="editStep('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit and resubmit">edit</button>
@@ -670,7 +941,15 @@ function addStep(step, diagnostics) {
   }
 
   d.innerHTML = html;
-  conversation.appendChild(d);
+
+  // Replace step indicator if it exists
+  const indicatorId = `step-indicator-${sn}`;
+  const indicator = $(indicatorId);
+  if (indicator) {
+    indicator.replaceWith(d);
+  } else {
+    conversation.appendChild(d);
+  }
   removeWelcome();
   scrollChat();
 }
@@ -698,36 +977,23 @@ function editStep(id) {
 async function rerunStep(id) {
   const el = $(id); if (!el) return;
   const step = JSON.parse(el.dataset.step || '{}');
-  const msg = `Rerun step ${step.step_number}: ${step.tool_name} with args ${JSON.stringify(step.tool_args)}`;
-  try {
-    await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg, session_id:sessionId}) });
-    addMsg(`rerun requested for step ${step.step_number}`, 'indigo-400');
-  } catch(_) {}
+  const msg = `rerun step ${step.step_number}: ${step.tool_name}`;
+  $('msg-input').value = msg;
+  $('respond-btn').click();
 }
 
 async function deleteStep(id) {
   const el = $(id); if (!el) return;
-  try {
-    const step = JSON.parse(el.dataset.step || '{}');
-    await fetch(`/api/task/history/${step.step_number}?session_id=${sessionId}`, { method:'DELETE' });
-    el.remove();
-    addMsg(`step ${step.step_number} deleted`, 'rose-400');
-  } catch(_) {}
+  el.innerHTML = `<div class="flex items-center gap-2">
+    <span class="text-[9px] font-bold text-slate-600 bg-white/5 px-1.5 py-0.5 rounded">deleted</span>
+    <span class="text-[10px] text-slate-600 italic">step removed</span>
+  </div>`;
 }
 
 async function branchHere(id) {
-  const el = $(id); if (!el) return;
-  const stepNumber = parseInt(el.dataset.stepNumber);
-  try {
-    await fetch('/api/task/branch', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId, step_number:stepNumber}) });
-    // Remove all step elements after this one
-    const allSteps = conversation.querySelectorAll('[id^="step-"]');
-    let removed = 0;
-    allSteps.forEach(s => {
-      if (parseInt(s.dataset.stepNumber) > stepNumber) { s.remove(); removed++; }
-    });
-    addMsg(`branched at step ${stepNumber} (removed ${removed} following steps)`, 'indigo-400');
-  } catch(_) {}
+  // Branch functionality removed in unified chat architecture.
+  // Messages are kept for context; use "fresh chat" for a clean slate.
+  showToast('branch not available in chat mode');
 }
 
 // --- Overseer Review ---
@@ -738,17 +1004,17 @@ function addOverseerReview(msg) {
   const id = 'ov-' + Date.now();
 
   const d = document.createElement('div');
-  d.className = `slide-up glass rounded-lg p-2.5 border-l-2 border-${color}-500/40`;
+  d.className = `slide-up glass rounded-lg p-2.5 border-l-2 border-${color}-500/40 ml-3 my-0.5`;
 
   let html = `<div class="flex items-center justify-between mb-1">
-    <span class="text-[9px] font-bold text-${color}-400 uppercase tracking-wider">overseer: ${status}</span>
+    <span class="text-[9px] font-bold text-${color}-400 uppercase tracking-wider">&#128220; overseer: ${status}</span>
     <div class="flex gap-1">
-      <button onclick="toggle('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">expand</button>
+      <button onclick="toggle('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">${msg.feedback ? 'details' : ''}</button>
       ${!approved ? `<button onclick="overrideOverseer()" class="text-[9px] text-indigo-400 hover:text-indigo-300 transition">override</button>` : ''}
     </div>
   </div>
-  <div id="${id}" class="hidden">
-    <p class="text-[10px] text-slate-400">${escapeHtml(msg.reasoning||'')}</p>
+  <div class="text-[10px] text-slate-400 leading-relaxed">${escapeHtml(msg.reasoning||'')}</div>
+  <div id="${id}" class="${msg.feedback ? '' : 'hidden'}">
     ${msg.feedback ? `<p class="text-[10px] text-slate-500 mt-1 italic">${escapeHtml(msg.feedback)}</p>` : ''}
   </div>`;
 
@@ -756,17 +1022,13 @@ function addOverseerReview(msg) {
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
-
-  if (!approved) {
-    addMsg(`overseer: ${status}`, 'rose-400');
-  }
 }
 
 async function overrideOverseer() {
   const feedback = prompt('Override feedback for the agent:');
   if (feedback === null) return;
   try {
-    await fetch('/api/task/override', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:feedback, session_id:sessionId}) });
+    await fetch('/api/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved:true, feedback:`[OVERSEER OVERRIDE] ${feedback}`, session_id:sessionId}) });
     addMsg(`overseer overridden: ${feedback}`, 'indigo-400');
   } catch(_) {}
 }
@@ -776,6 +1038,14 @@ function showApproval(msg) {
   const isAsk = msg.tool_name === 'ask_user' || msg.type === 'ask_user';
   $('approval-title').textContent = isAsk ? 'agent asks:' : 'approval required';
   $('approval-thought').textContent = msg.thought || msg.tool_args?.question || '';
+  // Show tool args
+  const argsEl = $('approval-args');
+  if (msg.tool_args && Object.keys(msg.tool_args).length > 0 && !isAsk) {
+    argsEl.textContent = JSON.stringify(msg.tool_args, null, 2);
+    argsEl.classList.remove('hidden');
+  } else {
+    argsEl.classList.add('hidden');
+  }
   $('feedback-input').value = '';
   $('feedback-input').placeholder = isAsk ? 'your answer...' : 'feedback (optional)';
   $('approve-btn').textContent = isAsk ? 'answer' : 'approve';
@@ -787,48 +1057,22 @@ function showApproval(msg) {
 function hideApproval() { approvalBanner.classList.add('hidden'); }
 
 // --- Async Actions ---
-async function handleSend() {
-  const text = $('msg-input').value.trim();
-  if (!text) return;
-  const statusText = ($('status-badge').textContent || '').trim().toLowerCase();
-  if (statusText === 'paused') {
-    // Resume the paused task
-    try {
-      await fetch('/api/task/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved:true, feedback:text, session_id:sessionId}) });
-      addMsg(`resumed: "${text.slice(0,120)}"`, 'indigo-400');
-    } catch(_) {}
-  } else if (isRunning) {
-    // Send as direct talk to agent mid-task
-    try {
-      await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
-      addMsg(`talk: "${text.slice(0,120)}"`, 'indigo-400');
-    } catch(_) {}
-  } else {
-    // Start a new task
-    const mode = $('approval-mode').value;
-    hideApproval();
-    setStatus('running');
-    isRunning = true;
-    addMsg(`launching: ${text} (${mode})`, 'indigo-400');
-    try {
-      const r = await fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal:text, approval_mode:mode, max_steps:9999, session_id:sessionId}) });
-      if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'error'}`, 'rose-400'); setStatus('error'); isRunning = false; }
-    } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); setStatus('error'); isRunning = false; }
-  }
-  $('msg-input').value = '';
-}
-
 async function submitApproval(approved) {
   const feedback = $('feedback-input').value.trim();
   hideApproval();
-  try { await fetch('/api/task/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved, feedback:feedback||undefined, session_id:sessionId}) }); } catch(_) {}
+  try { await fetch('/api/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved, feedback:feedback||undefined, session_id:sessionId}) }); } catch(_) {}
 }
 
 async function stopTask() {
-  try { await fetch('/api/task/stop', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); addMsg('stop requested', 'rose-400'); } catch(_) {}
-}
-async function pauseTask() {
-  try { await fetch('/api/task/stop-after-step', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); addMsg('will pause after current step', 'amber-400'); } catch(_) {}
+  hideApproval();
+  hideGenerating();
+  if (sleepMode) {
+    $('wake-btn').classList.add('hidden');
+    $('msg-input').placeholder = 'Task goal or message for agent...';
+    sleepMode = false;
+  }
+  try { await fetch('/api/chat/stop', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); } catch(_) {}
+  addMsg('stop requested', 'rose-400');
 }
 
 // --- Self-Dev Controls ---
@@ -854,68 +1098,85 @@ async function sdStatus() {
 }
 
 // --- Event Listeners ---
-$('start-btn').onclick = handleSend;
-$('respond-btn').onclick = async () => {
+async function sendMessage() {
   const text = $('msg-input').value.trim();
   if (!text) return;
   $('msg-input').value = '';
+  autoResizeTextarea();
+  addMsg(`you: ${text}`, 'indigo-400');
+  try {
+    await fetch('/api/chat/send', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+  } catch(_) {}
+}
 
-  // If editing an existing message, update it in-place
-  if (editingMsgId) {
-    const el = $(editingMsgId);
-    if (el) {
-      const msg = JSON.parse(el.dataset.msg || '{}');
-      msg.text = text;
-      el.dataset.msg = JSON.stringify(msg);
-      // Update the display text
-      const span = el.querySelector('span.text-[11px]');
-      if (span) span.textContent = text;
-      // Try to update backend history too
-      if (msg.step_number) {
-        fetch(`/api/task/history/${msg.step_number}?session_id=${sessionId}`, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({observation: text})
-        }).catch(() => {});
-      }
-    }
-    editingMsgId = null;
-    $('respond-btn').textContent = 'respond';
-    showToast('message updated');
+function enterSleepMode(text) {
+  showGenerating('sleep flow...');
+  addMsg(`sleep: ${text || '(starting sleep optimization)'}`, 'amber-400');
+  $('wake-btn').classList.remove('hidden');
+  fetch('/api/chat/sleep-start', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:text, session_id:sessionId})
+  }).catch(err => addMsg(`sleep start error: ${err.message}`, 'rose-400'));
+}
+function exitSleepMode() {
+  fetch('/api/chat/sleep-wake', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({session_id:sessionId})
+  }).catch(err => addMsg(`sleep wake error: ${err.message}`, 'rose-400'));
+  $('wake-btn').classList.add('hidden');
+  $('msg-input').placeholder = 'Task goal or message for agent...';
+  sleepMode = false;
+  addMsg('sleep mode ended', 'slate-400');
+}
+
+function autoResizeTextarea() {
+  const t = $('msg-input');
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 200) + 'px';
+}
+
+$('msg-input').addEventListener('input', autoResizeTextarea);
+
+$('send-btn').onclick = sendMessage;
+
+$('respond-btn').onclick = async () => {
+  const text = $('msg-input').value.trim();
+  $('msg-input').value = '';
+  autoResizeTextarea();
+  if (sleepMode) {
+    // In sleep mode, text is optional guidance
+    showGenerating('sleep flow...');
+    addMsg(`sleep: ${text || '(continuing)'}`, 'amber-400');
+    fetch('/api/chat/sleep-start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text, session_id:sessionId})
+    }).catch(err => addMsg(`sleep start error: ${err.message}`, 'rose-400'));
     return;
   }
-
-  // Check current status badge for paused state
-  const statusText = ($('status-badge').textContent || '').trim().toLowerCase();
-  if (statusText === 'paused') {
-    // Resume the paused task with the message
-    try {
-      await fetch('/api/task/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approved:true, feedback:text, session_id:sessionId}) });
-      addMsg(`resumed: "${text.slice(0,120)}"`, 'indigo-400');
-    } catch(_) { addMsg('failed to resume', 'rose-400'); }
-  } else if (isRunning) {
-    // Send as direct talk and the orchestrator will respond on next step
-    try {
-      await fetch('/api/task/talk', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
-      addMsg(`asked: "${text.slice(0,120)}"`, 'indigo-400');
-    } catch(_) { addMsg('failed to send', 'rose-400'); }
-  } else {
-    // Start a new task so the agent will respond
-    const mode = $('approval-mode').value;
-    hideApproval();
-    setStatus('running');
-    isRunning = true;
-    addMsg(`respond: ${text}`, 'indigo-400');
-    try {
-      const r = await fetch('/api/task/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({goal:text, approval_mode:mode, max_steps:9999, session_id:sessionId}) });
-      if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'error'}`, 'rose-400'); setStatus('error'); isRunning = false; }
-    } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); setStatus('error'); isRunning = false; }
-  }
+  // Normal respond — empty input is allowed (just triggers agent)
+  showGenerating('responding...');
+  if (text) addMsg(`you: ${text}`, 'indigo-400');
+  try {
+    const r = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:text, session_id:sessionId}) });
+    if (!r.ok) { const err = await r.json(); addMsg(`failed: ${err.detail||'error'}`, 'rose-400'); }
+  } catch(err) { addMsg(`network error: ${err.message}`, 'rose-400'); }
 };
+
+$('wake-btn').onclick = exitSleepMode;
 $('approve-btn').onclick = () => submitApproval(true);
 $('reject-btn').onclick = () => submitApproval(false);
 $('stop-btn').onclick = stopTask;
-$('pause-btn').onclick = pauseTask;
+$('pause-btn').onclick = async () => {
+  if ($('pause-btn').textContent === 'pause') {
+    try { await fetch('/api/chat/pause', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); } catch(_) {}
+    $('pause-btn').textContent = 'resume';
+    addMsg('pause requested (after current output)', 'amber-400');
+  } else {
+    try { await fetch('/api/chat/resume', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({session_id:sessionId}) }); } catch(_) {}
+    $('pause-btn').textContent = 'pause';
+    addMsg('resumed', 'emerald-400');
+  }
+};
 $('fresh-btn').onclick = async () => {
   // Create new session and reset the UI
   try {
@@ -926,15 +1187,20 @@ $('fresh-btn').onclick = async () => {
     $('settings-session').textContent = sessionId;
     const url = new URL(location); url.searchParams.set('session', sessionId); history.replaceState({},'',url);
     // Reset conversation
-    conversation.innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">fresh chat. what would you like to do?</div>`;
+    conversation.innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>`;
     $('todo-panel').classList.add('hidden');
     $('todo-items').innerHTML = '';
-    stepCount = 0;
+    currentGoal = '';
     isRunning = false;
+    hideGenerating();
+    hideApproval();
     setStatus('idle');
-    $('start-btn').disabled = false;
     $('stop-btn').disabled = true;
     $('pause-btn').disabled = true;
+    $('pause-btn').textContent = 'pause';
+    $('wake-btn').classList.add('hidden');
+    // Reset todos on backend and refresh
+    fetch('/api/todos', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message: JSON.stringify({todo_items: [], completed_items: []})}) }).then(() => fetchTodos()).catch(()=>{});
     addMsg('new session started', 'slate-500');
   } catch(_) {}
 };
@@ -944,12 +1210,30 @@ document.querySelectorAll('.nav-tab').forEach(t => t.addEventListener('click', (
 // Notes
 $('notes-editor').addEventListener('blur', () => { if ($('notes-editor').value.trim()) saveNotes(true); });
 
-// Memory tab buttons
-$('mtab-graph').onclick = () => switchMtab('graph');
-$('mtab-rules').onclick = () => switchMtab('rules');
-$('mtab-neighbors').onclick = () => switchMtab('neighbors');
-$('mem-optimize-btn').onclick = async () => { try { await fetch('/api/memory/optimize',{method:'POST'}); loadMemoryGraph(); addMsg('memory optimized','indigo-400'); } catch(_) {} };
-$('mem-refresh-btn').onclick = () => loadMemoryGraph('graph');
+// Memory
+$('mem-refresh-btn').onclick = loadMemoryGraph;
+
+function updateApprovalBadge(mode) {
+  const badge = $('approval-mode-badge');
+  const labels = { 'WAIT_FOR_USER': {text:'WAIT', cls:'badge cursor-pointer bg-amber-500/10 text-amber-400 border-amber-500/30'},
+                   'CHECK_WITH_OVERSEER': {text:'OVERSEER', cls:'badge cursor-pointer bg-indigo-500/10 text-indigo-400 border-indigo-500/30'},
+                   'AUTO_APPROVE': {text:'AUTO', cls:'badge cursor-pointer bg-emerald-500/10 text-emerald-400 border-emerald-500/30'} };
+  const info = labels[mode] || labels['WAIT_FOR_USER'];
+  badge.textContent = info.text;
+  badge.className = info.cls;
+  const display = $('approval-mode-display');
+  if (display) display.textContent = mode;
+}
+
+async function loadApprovalMode() {
+  try {
+    const r = await fetch(`/api/session/info?session_id=${sessionId}`);
+    const d = await r.json();
+    if (d.approval_mode) {
+      updateApprovalBadge(d.approval_mode);
+    }
+  } catch(_) {}
+}
 
 // Self-dev
 $('sd-init-btn').onclick = sdInit;
@@ -965,18 +1249,88 @@ $('settings-new-session').onclick = async () => {
   addMsg(`new session: ${sessionId}`, 'indigo-400');
 };
 
+// Sleep context generation
+$('sleep-gen-btn').onclick = async () => {
+  const fromStr = $('sleep-from').value;
+  const toStr = $('sleep-to').value;
+  if (!fromStr || !toStr) { $('sleep-output').textContent = 'Please set both From and To times.'; return; }
+  const fromTs = parseUtcDatetime(fromStr);
+  const toTs = parseUtcDatetime(toStr);
+  if (isNaN(fromTs) || isNaN(toTs)) { $('sleep-output').textContent = 'Invalid time format. Use YYYY-MM-DD HH:MM (UTC).'; return; }
+  $('sleep-output').textContent = 'Generating context...';
+  try {
+    const r = await fetch('/api/sleep-context', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({start_time: fromTs, end_time: toTs, session_id: sessionId})
+    });
+    const d = await r.json();
+    $('sleep-output').textContent = d.context || 'No context generated.';
+  } catch(e) { $('sleep-output').textContent = `Error: ${e.message}`; }
+};
+
+$('sleep-flow-btn').onclick = async () => {
+  const fromStr = $('sleep-from').value;
+  const toStr = $('sleep-to').value;
+  if (!fromStr || !toStr) { $('sleep-output').textContent = 'Please set both From and To times.'; return; }
+  const fromTs = parseUtcDatetime(fromStr);
+  const toTs = parseUtcDatetime(toStr);
+  if (isNaN(fromTs) || isNaN(toTs)) { $('sleep-output').textContent = 'Invalid time format. Use YYYY-MM-DD HH:MM (UTC).'; return; }
+  // Switch to chat + enter sleep UI mode
+  switchView('console');
+  conversation.innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready.</div>`;
+  $('msg-input').placeholder = 'Optional guidance — press respond to start sleep flow...';
+  $('msg-input').value = $('sleep-guidance').value || '';
+  autoResizeTextarea();
+  sleepMode = true;
+  addMsg('sleep mode ready — enter optional guidance and press respond', 'amber-400');
+};
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.ctrlKey) { handleSend(); return; }
-  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input') && !approvalBanner.classList.contains('hidden')) {
-    e.preventDefault(); submitApproval(true); return;
-  }
-  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) { e.preventDefault(); $('respond-btn').click(); return; }
   if (!approvalBanner.classList.contains('hidden')) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitApproval(true); }
     if (e.key === 'Escape') { submitApproval(false); }
+    return;
+  }
+  if (e.key === 'Enter' && e.ctrlKey && document.activeElement === $('msg-input')) {
+    e.preventDefault(); $('respond-btn').click(); return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) {
+    e.preventDefault(); $('send-btn').click(); return;
   }
 });
+
+// LM Studio status polling
+async function checkLmStatus() {
+  try {
+    const r = await fetch('/api/lm/status'); const d = await r.json();
+    const badge = $('lm-badge');
+    if (d.status === 'connected') {
+      badge.textContent = `LM ${d.model.slice(0, 20)}`;
+      badge.className = 'badge bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+    } else {
+      badge.textContent = 'LM ○';
+      badge.className = 'badge bg-slate-800 text-slate-500 border border-white/5';
+    }
+  } catch(_) {}
+}
+
+// Approval mode cycling on badge click
+$('approval-mode-badge').onclick = async () => {
+  const badge = $('approval-mode-badge');
+  const currentLabel = badge.textContent;
+  const modes = ['WAIT', 'OVERSEER', 'AUTO'];
+  const apiModes = ['WAIT_FOR_USER', 'CHECK_WITH_OVERSEER', 'AUTO_APPROVE'];
+  const idx = modes.indexOf(currentLabel);
+  const next = apiModes[(idx + 1) % apiModes.length];
+  try {
+    const r = await fetch('/api/session/approval-mode', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mode:next, session_id:sessionId}) });
+    const d = await r.json();
+    updateApprovalBadge(d.approval_mode);
+    if ($('approval-mode-select')) $('approval-mode-select').value = d.approval_mode;
+  } catch(_) {}
+};
 
 // Init
 (async () => {
@@ -985,7 +1339,11 @@ document.addEventListener('keydown', e => {
   switchView('console');
   loadNotes();
   fetchTodos();
+  loadApprovalMode();
+  loadSleepTimerange();
+  checkLmStatus();
   setInterval(fetchTodos, 5000);
+  setInterval(checkLmStatus, 10000);
 })();
 </script>
 </body>

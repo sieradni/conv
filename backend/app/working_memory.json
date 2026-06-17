@@ -3,17 +3,53 @@
     {
       "id": "9162ccb6a400",
       "title": "Root Core Memory",
-      "summary": "High-level project context, decisions, and discovered facts.",
       "detail": "",
-      "parent_id": null,
-      "child_ids": [],
-      "linked_ids": [],
-      "has_deeper_detail": false,
-      "access_count": 0,
+      "linked_ids": [
+        "bc0d19670fdc",
+        "ce857dbacca6"
+      ],
+      "is_root": true,
+      "access_count": 2,
       "created_at": 1781645965.798589,
-      "updated_at": 1781645965.872993
+      "updated_at": 1781675924.21333
+    },
+    {
+      "id": "ce857dbacca6",
+      "title": "User Greeting",
+      "detail": "Greeting received from the user. No further action required.",
+      "linked_ids": [
+        "9162ccb6a400"
+      ],
+      "is_root": false,
+      "access_count": 0,
+      "created_at": 1781651846.0629818,
+      "updated_at": 1781651846.0629826
+    },
+    {
+      "id": "f301f04acfd0",
+      "title": "Tic-Tac-Toe Implementation Plan",
+      "detail": "Game structure: 3x3 grid represented as a list of lists. Players take turns placing 'X' or 'O'. After each move, check rows, columns, diagonals, and the last placed cell for a winner. Game ends on win or draw (all cells filled). The game loop prints the board after every turn.",
+      "linked_ids": [
+        "ce857dba"
+      ],
+      "is_root": false,
+      "access_count": 0,
+      "created_at": 1781662338.8239796,
+      "updated_at": 1781662338.8239796
+    },
+    {
+      "id": "bc0d19670fdc",
+      "title": "user_name",
+      "detail": "",
+      "linked_ids": [
+        "9162ccb6a400"
+      ],
+      "is_root": false,
+      "access_count": 0,
+      "created_at": 1781666580.234372,
+      "updated_at": 1781666580.2343724
     }
   ],
-  "current_node_id": "9162ccb6a400",
-  "format": "hswm_v1"
+  "current_node_id": null,
+  "format": "hswm_v2"
 }

@@ -148,97 +148,46 @@ class ToolExecutor:
             })
             raise Exception(error_msg)
     
-    def read_memory(self) -> Dict[str, Any]:
-        """Read and return current working memory.
-        
+    def read_todo(self) -> Dict[str, Any]:
+        """Read the todo items from the todo file.
+
         Returns:
-            Dictionary containing working memory state
-        
-        Raises:
-            Exception: If memory file cannot be read
+            Dict with 'todo_items' list and 'completed_items' list
         """
+        todo_path = Path(__file__).parent / "todo.json"
+        if not todo_path.exists():
+            return {"todo_items": [], "completed_items": []}
         try:
-            memory_path = Path(__file__).parent / "working_memory.json"
-            if not memory_path.exists():
-                return {
-                    "project_overview": "Not initialized",
-                    "facts_discovered": {},
-                    "active_decisions": [],
-                    "todo_list": [],
-                    "completed_tasks": []
-                }
-            
-            with open(memory_path, 'r') as f:
-                memory = json.load(f)
-            
-            self.execution_log.append({
-                "tool": "read_memory",
-                "status": "success",
-                "keys_read": list(memory.keys())
-            })
-            
-            return memory
-        except Exception as e:
-            error_msg = f"Error reading memory: {str(e)}"
-            self.execution_log.append({
-                "tool": "read_memory",
-                "status": "failed",
-                "error": str(e)
-            })
-            raise Exception(error_msg)
-    
-    def write_memory(self, key: str, value: Any) -> str:
-        """Update a key in working memory and save to disk.
-        
+            return json.loads(todo_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"todo_items": [], "completed_items": []}
+
+    def update_todo(self, key: str, value: Any) -> str:
+        """Update the todo items file.
+
         Args:
-            key: Top-level key in working_memory.json
-            value: Value to set for the key
-        
+            key: "todo_items" or "completed_items"
+            value: List of item strings
+
         Returns:
             Success message
-        
-        Raises:
-            Exception: If memory file cannot be written
         """
-        try:
-            memory_path = Path(__file__).parent / "working_memory.json"
-            
-            # Read existing memory
-            if memory_path.exists():
-                with open(memory_path, 'r') as f:
-                    memory = json.load(f)
-            else:
-                memory = {
-                    "project_overview": "Not initialized",
-                    "facts_discovered": {},
-                    "active_decisions": [],
-                    "todo_list": [],
-                    "completed_tasks": []
-                }
-            
-            # Update the specified key
-            memory[key] = value
-            
-            # Write back to file
-            with open(memory_path, 'w') as f:
-                json.dump(memory, f, indent=2)
-            
-            self.execution_log.append({
-                "tool": "write_memory",
-                "key": key,
-                "status": "success"
-            })
-            
-            return f"✓ Updated memory key '{key}'"
-        except Exception as e:
-            error_msg = f"Error writing memory: {str(e)}"
-            self.execution_log.append({
-                "tool": "write_memory",
-                "key": key,
-                "status": "failed",
-                "error": str(e)
-            })
-            raise Exception(error_msg)
+        todo_path = Path(__file__).parent / "todo.json"
+        data = {"todo_items": [], "completed_items": []}
+        if todo_path.exists():
+            try:
+                data = json.loads(todo_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        data[key] = value
+        todo_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return f"✓ Updated {key}"
+
+    def read_memory(self) -> Dict[str, Any]:
+        return self.read_todo()
+
+    def write_memory(self, key: str, value: Any) -> str:
+        return self.update_todo(key, value)
     
     def refine_memory_methodology(self, new_rules: str, reflection: str) -> str:
         """Update memory management guidelines and log the change.
@@ -295,57 +244,63 @@ New Rules Applied:
             raise Exception(error_msg)
     
     def ask_overseer(self, question: str) -> str:
-        """Ask the Overseer agent a question for guidance (non-blocking).
-        
-        This is a placeholder that will be properly integrated in the orchestrator.
-        The actual call will be intercepted by the orchestrator.
-        
-        Args:
-            question: The question to ask the Overseer
-        
-        Returns:
-            Placeholder response (actual implementation in orchestrator)
-        """
-        # This will be called through the orchestrator which will handle
-        # async execution of the OverseerAgent
         return f"[Asking Overseer: {question[:50]}...]"
 
-    # ── HSWM Navigation Tools ────────────────────────────────────
+    # ── Memory Tools ────────────────────────────────────────────
 
-    def navigate_up(self) -> str:
-        """Move the memory pointer to the parent node."""
+    def set_current_node(self, node_id: str = "") -> str:
+        """Set the current memory focus node."""
         from app.memory_graph import get_memory_graph
         graph = get_memory_graph()
-        node = graph.navigate_up()
+        nid = node_id.strip() or None
+        node = graph.set_current_node(nid)
+        if nid is None:
+            return "✓ Current node cleared."
         if node:
-            return f"✓ Moved up to [{node.title}]: {node.summary[:200]}"
-        return "Already at root — no parent."
+            return f"✓ Current node set to [{node.id[:8]}] {node.title}"
+        return f"Node '{node_id}' not found."
 
-    def navigate_down(self, node_id: str) -> str:
-        """Move the memory pointer to a child node by id."""
+    def read_detail(self, node_id: str, sleep_mode: bool = False) -> str:
+        """Read the full detail block of a memory node (increments access count unless sleep_mode)."""
         from app.memory_graph import get_memory_graph
         graph = get_memory_graph()
-        node = graph.navigate_down(node_id)
-        if node:
-            return f"✓ Moved down to [{node.title}]: {node.summary[:200]}"
-        return f"Node '{node_id}' is not a child of the current node."
-
-    def return_to_base(self) -> str:
-        """Reset the memory pointer to the root node."""
-        from app.memory_graph import get_memory_graph
-        graph = get_memory_graph()
-        node = graph.return_to_base()
-        if node:
-            return f"✓ Returned to root: [{node.title}]"
-        return "No root found."
-
-    def read_detail(self, node_id: str) -> str:
-        """Read the full detail block of a memory node (increments access count)."""
-        from app.memory_graph import get_memory_graph
-        graph = get_memory_graph()
-        detail = graph.read_detail(node_id)
+        detail = graph.read_detail(node_id, sleep_mode=sleep_mode)
         if detail is not None:
             return f"Detail for node {node_id[:8]}:\n{detail}"
+        return f"Node '{node_id}' not found."
+
+    def create_memory(
+        self, title: str, detail: str = "",
+        linked_ids: str = "", is_root: bool = False
+    ) -> str:
+        """Create a new memory node."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+        lids = [x.strip() for x in linked_ids.split(",") if x.strip()] if linked_ids else None
+        node = graph.create_memory(
+            title=title, detail=detail,
+            linked_ids=lids, is_root=is_root,
+        )
+        return f"✓ Created memory [{node.id[:8]}] '{title}'"
+
+    def update_memory(
+        self, node_id: str,
+        title: str = "", detail: str = "",
+        linked_ids: str = "",
+    ) -> str:
+        """Modify an existing memory node. Empty strings mean 'leave unchanged'."""
+        from app.memory_graph import get_memory_graph
+        graph = get_memory_graph()
+        kwargs = {}
+        if title:
+            kwargs["title"] = title
+        if detail:
+            kwargs["detail"] = detail
+        if linked_ids:
+            kwargs["linked_ids"] = [x.strip() for x in linked_ids.split(",") if x.strip()]
+        node = graph.update_memory(node_id, **kwargs)
+        if node:
+            return f"✓ Updated memory [{node.id[:8]}] {node.title}"
         return f"Node '{node_id}' not found."
 
     # ── Self-Development Tools ────────────────────────────────────
@@ -379,26 +334,6 @@ New Rules Applied:
         if notes_path.exists():
             return notes_path.read_text(encoding="utf-8")
         return "# User Notes\n\nNo notes yet."
-
-    def create_memory(
-        self, title: str, summary: str, detail: str = "",
-        parent_id: str = "", link_to_ids: str = ""
-    ) -> str:
-        """Create a new memory node in the graph."""
-        from app.memory_graph import get_memory_graph
-        graph = get_memory_graph()
-
-        pid = parent_id if parent_id else graph.current_node_id
-        lids = [x.strip() for x in link_to_ids.split(",") if x.strip()] if link_to_ids else None
-
-        node = graph.create_memory(
-            title=title,
-            summary=summary,
-            detail=detail,
-            parent_id=pid,
-            link_to_ids=lids,
-        )
-        return f"✓ Created memory [{node.id[:8]}] '{title}' under {pid[:8] if pid else 'root'}"
 
 
 

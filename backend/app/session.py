@@ -4,7 +4,7 @@ import asyncio
 import time
 import uuid
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from fastapi import WebSocket
 
 logger = logging.getLogger("session")
@@ -92,33 +92,26 @@ class Session:
 
     def __init__(self, session_id: str):
         self.session_id = session_id
-        self.orchestrator: Any = None  # AgentOrchestrator instance
         self.user_response_queue: asyncio.Queue = asyncio.Queue()
         self.direct_talk_queue: asyncio.Queue = asyncio.Queue()
-        self.status: str = "IDLE"
-        self.goal: str = ""
-        self.approval_mode: str = "WAIT_FOR_USER"
-        self.max_steps: int = 15
         self.stop_requested: bool = False
-        self.stop_after_step: bool = False
+        self.pause_requested: bool = False
+        self.resume_event: asyncio.Event = asyncio.Event()
+        self.approval_mode: str = "WAIT_FOR_USER"
+        self.chat_history: List[dict] = []
         self.created_at: float = time.time()
         self.last_active_at: float = time.time()
+        self.sleep_mode: bool = False
+        self.current_goal: str = ""
 
     def touch(self):
         self.last_active_at = time.time()
 
     def to_dict(self) -> dict:
-        s = self.orchestrator.state if self.orchestrator else None
         return {
             "session_id": self.session_id,
-            "status": self.status,
-            "goal": self.goal,
-            "approval_mode": self.approval_mode,
-            "max_steps": self.max_steps,
             "stop_requested": self.stop_requested,
-            "stop_after_step": self.stop_after_step,
-            "current_step": s.current_step if s else 0,
-            "total_steps": len(s.history) if s else 0,
+            "approval_mode": self.approval_mode,
             "created_at": self.created_at,
             "last_active_at": self.last_active_at,
         }
