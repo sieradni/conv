@@ -129,7 +129,7 @@ class TestToolExecutorMemory:
     def test_set_current_node(self, executor):
         with patch("app.memory_graph.get_memory_graph") as mock_get:
             mock_graph = MagicMock()
-            mock_graph.set_current_node.return_value = MagicMock(id="abc12345xyz", title="Test")
+            mock_graph.set_current_node.return_value = MagicMock(id="abc12345xyz", content="Test")
             mock_get.return_value = mock_graph
             result = executor.set_current_node("abc12345xyz")
             assert "✓" in result
@@ -161,7 +161,7 @@ class TestToolExecutorMemory:
     def test_create_memory(self, executor):
         with patch("app.memory_graph.get_memory_graph") as mock_get:
             mock_graph = MagicMock()
-            mock_graph.create_memory.return_value = MagicMock(id="abc123", title="New Mem")
+            mock_graph.create_memory.return_value = MagicMock(id="abc123", content="New Mem")
             mock_get.return_value = mock_graph
             result = executor.create_memory("New Mem", "details", "link1,link2", True)
             assert "✓" in result
@@ -169,9 +169,9 @@ class TestToolExecutorMemory:
     def test_update_memory(self, executor):
         with patch("app.memory_graph.get_memory_graph") as mock_get:
             mock_graph = MagicMock()
-            mock_graph.update_memory.return_value = MagicMock(id="abc", title="Updated")
+            mock_graph.update_memory.return_value = MagicMock(id="abc", content="Updated")
             mock_get.return_value = mock_graph
-            result = executor.update_memory("abc", title="Updated")
+            result = executor.update_memory("abc", content="Updated")
             assert "✓" in result
 
 

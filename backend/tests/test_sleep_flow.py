@@ -76,15 +76,15 @@ class TestApplyActions:
         _apply_actions([{"action": "set_root", "id": node.id, "is_root": False}], memory_graph)
         assert node.is_root is False
 
-    def test_apply_update_title(self, memory_graph):
-        node = memory_graph.create_memory("Old Title")
-        _apply_actions([{"action": "update", "id": node.id, "title": "New Title"}], memory_graph)
-        assert node.title == "New Title"
+    def test_apply_update_content(self, memory_graph):
+        node = memory_graph.create_memory("Old Content")
+        _apply_actions([{"action": "update", "id": node.id, "content": "New Content"}], memory_graph)
+        assert node.content == "New Content"
 
-    def test_apply_update_detail(self, memory_graph):
+    def test_apply_update_extraneous_detail(self, memory_graph):
         node = memory_graph.create_memory("Test")
-        _apply_actions([{"action": "update", "id": node.id, "detail": "New detail"}], memory_graph)
-        assert node.detail == "New detail"
+        _apply_actions([{"action": "update", "id": node.id, "extraneous_detail": "New detail"}], memory_graph)
+        assert node.extraneous_detail == "New detail"
 
     def test_apply_merge(self, memory_graph):
         keep = memory_graph.create_memory("Keep")
@@ -93,12 +93,12 @@ class TestApplyActions:
             "action": "merge",
             "keep": keep.id,
             "delete": [delete.id],
-            "new_title": "Merged Title",
-            "new_detail": "Merged detail",
+            "new_content": "Merged Content",
+            "new_extraneous_detail": "Merged detail",
         }], memory_graph)
         assert delete.id not in memory_graph._nodes
-        assert keep.title == "Merged Title"
-        assert keep.detail == "Merged detail"
+        assert keep.content == "Merged Content"
+        assert keep.extraneous_detail == "Merged detail"
 
     def test_apply_merge_relinks(self, memory_graph):
         keep = memory_graph.create_memory("Keep")

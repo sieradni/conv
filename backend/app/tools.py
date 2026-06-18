@@ -368,11 +368,11 @@ New Rules Applied:
         if nid is None:
             return "✓ Current node cleared."
         if node:
-            return f"✓ Current node set to [{node.id[:8]}] {node.title}"
+            return f"✓ Current node set to [{node.id[:8]}] {node.content}"
         return f"Node '{node_id}' not found."
 
     def read_detail(self, node_id: str, sleep_mode: bool = False) -> str:
-        """Read the full detail block of a memory node (increments access count unless sleep_mode)."""
+        """Read the full content and details of a memory node (increments access count unless sleep_mode)."""
         from app.memory_graph import get_memory_graph
         graph = get_memory_graph()
         detail = graph.read_detail(node_id, sleep_mode=sleep_mode)
@@ -381,7 +381,7 @@ New Rules Applied:
         return f"Node '{node_id}' not found."
 
     def create_memory(
-        self, title: str, detail: str = "",
+        self, content: str, extraneous_detail: str = "",
         linked_ids: str = "", is_root: bool = False
     ) -> str:
         """Create a new memory node."""
@@ -389,29 +389,29 @@ New Rules Applied:
         graph = get_memory_graph()
         lids = [x.strip() for x in linked_ids.split(",") if x.strip()] if linked_ids else None
         node = graph.create_memory(
-            title=title, detail=detail,
+            content=content, extraneous_detail=extraneous_detail,
             linked_ids=lids, is_root=is_root,
         )
-        return f"✓ Created memory [{node.id[:8]}] '{title}'"
+        return f"✓ Created memory [{node.id[:8]}] '{content}'"
 
     def update_memory(
         self, node_id: str,
-        title: str = "", detail: str = "",
+        content: str = "", extraneous_detail: str = "",
         linked_ids: str = "",
     ) -> str:
         """Modify an existing memory node. Empty strings mean 'leave unchanged'."""
         from app.memory_graph import get_memory_graph
         graph = get_memory_graph()
         kwargs = {}
-        if title:
-            kwargs["title"] = title
-        if detail:
-            kwargs["detail"] = detail
+        if content:
+            kwargs["content"] = content
+        if extraneous_detail:
+            kwargs["extraneous_detail"] = extraneous_detail
         if linked_ids:
             kwargs["linked_ids"] = [x.strip() for x in linked_ids.split(",") if x.strip()]
         node = graph.update_memory(node_id, **kwargs)
         if node:
-            return f"✓ Updated memory [{node.id[:8]}] {node.title}"
+            return f"✓ Updated memory [{node.id[:8]}] {node.content}"
         return f"Node '{node_id}' not found."
 
     # ── Self-Development Tools ────────────────────────────────────

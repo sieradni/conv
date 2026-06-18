@@ -25,8 +25,8 @@ def _fmt_time(ts: float) -> str:
 @dataclass
 class MemoryNode:
     id: str
-    title: str
-    detail: str = ""
+    content: str
+    extraneous_detail: str = ""
     linked_ids: List[str] = field(default_factory=list)
     is_root: bool = False
     access_count: int = 0
@@ -88,17 +88,24 @@ class MemoryGraph:
         if "summary" in migrated and migrated["summary"]:
             migrated["title"] = migrated["title"] or migrated["summary"]
             migrated.pop("summary", None)
+        # v2 → v3: title → content, detail → extraneous_detail
+        if "title" in migrated:
+            migrated.setdefault("content", migrated["title"] or "")
+            migrated.pop("title", None)
+        if "detail" in migrated:
+            migrated.setdefault("extraneous_detail", migrated["detail"] or "")
+            migrated.pop("detail", None)
         # Ensure defaults for new fields
         migrated.setdefault("linked_ids", [])
         migrated.setdefault("is_root", False)
-        migrated.setdefault("detail", migrated.get("detail") or "")
+        migrated.setdefault("extraneous_detail", migrated.get("extraneous_detail") or "")
         return migrated
 
     def _save(self):
         data = {
             "nodes": [asdict(n) for n in self._nodes.values()],
             "current_node_id": self._current_node_id,
-            "format": "hswm_v2",
+            "format": "hswm_v3",
         }
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.path, "w") as f:
@@ -137,16 +144,16 @@ class MemoryGraph:
 
     def create_memory(
         self,
-        title: str,
-        detail: str = "",
+        content: str,
+        extraneous_detail: str = "",
         linked_ids: Optional[List[str]] = None,
         is_root: bool = False,
     ) -> MemoryNode:
         node_id = uuid.uuid4().hex[:12]
         node = MemoryNode(
             id=node_id,
-            title=title,
-            detail=detail or "",
+            content=content,
+            extraneous_detail=extraneous_detail or "",
             linked_ids=list(dict.fromkeys(linked_ids or [])),
             is_root=is_root,
         )
@@ -157,17 +164,17 @@ class MemoryGraph:
     def update_memory(
         self,
         node_id: str,
-        title: Optional[str] = None,
-        detail: Optional[str] = None,
+        content: Optional[str] = None,
+        extraneous_detail: Optional[str] = None,
         linked_ids: Optional[List[str]] = None,
     ) -> Optional[MemoryNode]:
         node = self._nodes.get(node_id)
         if not node:
             return None
-        if title is not None:
-            node.title = title
-        if detail is not None:
-            node.detail = detail
+        if content is not None:
+            node.content = content
+        if extraneous_detail is not None:
+            node.extraneous_detail = extraneous_detail
         if linked_ids is not None:
             node.linked_ids = list(dict.fromkeys(linked_ids))
         node.access_count = 0
@@ -197,18 +204,18 @@ class MemoryGraph:
             node.updated_at = time.time()
             self._save()
 
-        lines = [f"ID: {node.id}", f"Title: {node.title}"]
-        detail = node.detail.strip() if node.detail else ""
-        if detail:
-            lines.append(f"Detail: {detail}")
+        lines = [f"ID: {node.id}", f"Content: {node.content}"]
+        extraneous = node.extraneous_detail.strip() if node.extraneous_detail else ""
+        if extraneous:
+            lines.append(f"Extraneous detail: {extraneous}")
         else:
-            lines.append("Detail: No further details")
+            lines.append("Extraneous detail: none")
         if node.linked_ids:
             lines.append("Links:")
             for lid in node.linked_ids:
                 linked = self._nodes.get(lid)
                 if linked:
-                    lines.append(f"  [{lid}] {linked.title}")
+                    lines.append(f"  [{lid}] {linked.content}")
                 else:
                     lines.append(f"  [{lid}] (deleted)")
         else:
@@ -227,10 +234,10 @@ class MemoryGraph:
         roots = [n for n in self._nodes.values() if n.is_root]
         if roots:
             for r in sorted(roots, key=lambda n: n.created_at):
-                parts.append(f"  [root {r.id}] {r.title}")
+                parts.append(f"  [root {r.id}] {r.content}")
         current = self.current_node
         if current:
-            parts.append(f"  ► [current {current.id}] {current.title}")
+            parts.append(f"  ► [current {current.id}] {current.content}")
         if not parts:
             return "[no memory]"
         return "\n".join(parts)
@@ -262,14 +269,14 @@ class MemoryGraph:
         result: List[str] = []
 
         for node in sorted(in_range, key=lambda n: n.created_at):
-            detail = node.detail.strip() if node.detail else "No further details"
+            detail = node.extraneous_detail.strip() if node.extraneous_detail else "No extraneous detail"
             tags = []
             if node.is_root:
                 tags.append("root")
             tag_str = (" [" + ", ".join(tags) + "]") if tags else ""
 
             result.append(
-                f"[{node.id}] {node.title}{tag_str} | "
+                f"[{node.id}] {node.content}{tag_str} | "
                 f"{detail[:200]} | "
                 f"links: {len(node.linked_ids)} | "
                 f"access: {node.access_count} | "
@@ -282,7 +289,7 @@ class MemoryGraph:
                 for lid in node.linked_ids:
                     linked = self._nodes.get(lid)
                     if linked:
-                        label = f"[{lid}] {linked.title}"
+                        label = f"[{lid}] {linked.content}"
                         if lid not in in_range_set:
                             label += " (outside range)"
                     else:

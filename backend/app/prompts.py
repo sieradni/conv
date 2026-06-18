@@ -37,10 +37,10 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 8. set_current_node (read-only, no approval needed) — Args: {"node_id": "..."}
    Set current memory focus. Pass "" to clear current node.
 9. read_detail (read-only, no approval needed) — Args: {"key": "<node-id>"}
-   Read full detail, linked nodes, and timestamps of a memory node.
-10. create_memory (no approval needed) — Args: {"title": "short title", "detail": "markdown", "linked_ids": "id1,id2", "is_root": false}
+    Read full content and extra details, linked nodes, and timestamps of a memory node.
+10. create_memory (no approval needed) — Args: {"content": "what to remember", "extraneous_detail": "optional often uneeded information", "linked_ids": "id1,id2", "is_root": false}
     Create a new memory node. linked_ids and is_root optional.
-11. update_memory (no approval needed) — Args: {"id": "...", "title": "new title", "detail": "new detail", "linked_ids": "id1,id2"}
+11. update_memory (no approval needed) — Args: {"id": "...", "content": "new content", "extraneous_detail": "new extraneous detail", "linked_ids": "id1,id2"}
     Modify existing memory. Only provided fields are updated.
 
 **Goal setting:**
@@ -95,7 +95,7 @@ You have the same tools available as in normal chat mode, with these differences
 3. After you call **finish_task**, the system will ask you to reflect and analyze your work. Consider calling **refine_memory_methodology** to update your memory management approach.
 
 Your goal is to:
-- Optimize the organization of information in memories, regarding title, detail, and links.
+- Optimize the organization of information in memories, regarding content, extraneous detail, and links.
 - Consolidate duplicate or overlapping memories.
 - Add meaningful links between related memories.
 - Remove obsolete or low-value information.
@@ -129,10 +129,10 @@ Available tools:
 8. set_current_node (read-only, no approval needed) — Args: {"node_id": "..."}
    Set current memory focus. Pass "" to clear current node.
 9. read_detail (read-only, no approval needed) — Args: {"key": "<node-id>"}
-   Read full detail, linked nodes, and timestamps of a memory node.
-10. create_memory (no approval needed) — Args: {"title": "short title", "detail": "markdown", "linked_ids": "id1,id2", "is_root": false}
+    Read full content, extra details, linked nodes, and timestamps of a memory node.
+10. create_memory (no approval needed) — Args: {"content": "what to remember", "extraneous_detail": "optional, often uneeded information that may be useful", "linked_ids": "id1,id2", "is_root": false}
     Create a new memory node. linked_ids and is_root optional.
-11. update_memory (no approval needed) — Args: {"id": "...", "title": "new title", "detail": "new detail", "linked_ids": "id1,id2"}
+11. update_memory (no approval needed) — Args: {"id": "...", "content": "new content", "extraneous_detail": "new extraneous detail", "linked_ids": "id1,id2"}
     Modify existing memory. Only provided fields are updated.
 
 **Goal setting:**

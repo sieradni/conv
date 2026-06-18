@@ -25,12 +25,12 @@ Rules:
 - Keep root nodes for essential, high-level topics.
 - Return your suggestions as a JSON array of actions:
   [
-    {"action": "merge", "keep": "<id>", "delete": ["<id>", ...], "new_title": "...", "new_detail": "..."},
+    {"action": "merge", "keep": "<id>", "delete": ["<id>", ...], "new_content": "...", "new_extraneous_detail": "..."},
     {"action": "delete", "id": "<id>"},
     {"action": "link", "id": "<id>", "link_to": "<id>"},
     {"action": "unlink", "id": "<id>", "unlink_from": "<id>"},
     {"action": "set_root", "id": "<id>", "is_root": true},
-    {"action": "update", "id": "<id>", "title": "...", "detail": "..."}
+    {"action": "update", "id": "<id>", "content": "...", "extraneous_detail": "..."}
   ]
 
 Current memory graph context:
@@ -109,10 +109,10 @@ def _apply_actions(actions: list, graph):
                             if lid != keep_id and lid not in graph._nodes[keep_id].linked_ids:
                                 graph._nodes[keep_id].linked_ids.append(lid)
                         graph.delete_node(del_id)
-                if action.get("new_title"):
-                    graph._nodes[keep_id].title = action["new_title"]
-                if action.get("new_detail"):
-                    graph._nodes[keep_id].detail = action["new_detail"]
+                if action.get("new_content"):
+                    graph._nodes[keep_id].content = action["new_content"]
+                if action.get("new_extraneous_detail"):
+                    graph._nodes[keep_id].extraneous_detail = action["new_extraneous_detail"]
                 graph._nodes[keep_id].updated_at = time.time()
             elif act == "link":
                 node = graph._nodes.get(action["id"])
@@ -134,10 +134,10 @@ def _apply_actions(actions: list, graph):
             elif act == "update":
                 node = graph._nodes.get(action["id"])
                 if node:
-                    if action.get("title"):
-                        node.title = action["title"]
-                    if action.get("detail"):
-                        node.detail = action["detail"]
+                    if action.get("content"):
+                        node.content = action["content"]
+                    if action.get("extraneous_detail"):
+                        node.extraneous_detail = action["extraneous_detail"]
                     node.updated_at = time.time()
         except Exception as e:
             logger.warning(f"Skip action {action}: {e}")

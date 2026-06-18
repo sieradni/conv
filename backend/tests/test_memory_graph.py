@@ -6,10 +6,10 @@ from app.memory_graph import MemoryGraph, MemoryNode, _fmt_time
 
 class TestMemoryGraphCRUD:
     def test_create_memory(self, memory_graph):
-        node = memory_graph.create_memory("Test Title", detail="Some detail")
+        node = memory_graph.create_memory("Test Title", extraneous_detail="Some detail")
         assert node.id in memory_graph._nodes
-        assert node.title == "Test Title"
-        assert node.detail == "Some detail"
+        assert node.content == "Test Title"
+        assert node.extraneous_detail == "Some detail"
         assert node.is_root is False
         assert node.linked_ids == []
         assert node.access_count == 0
@@ -32,21 +32,21 @@ class TestMemoryGraphCRUD:
         node = memory_graph.create_memory("Test")
         result = memory_graph.get_node(node.id)
         assert result is not None
-        assert result["title"] == "Test"
+        assert result["content"] == "Test"
 
     def test_get_nonexistent_node(self, memory_graph):
         assert memory_graph.get_node("nonexistent") is None
 
-    def test_update_memory_title(self, memory_graph):
-        node = memory_graph.create_memory("Old Title")
-        updated = memory_graph.update_memory(node.id, title="New Title")
-        assert updated.title == "New Title"
-        assert memory_graph._nodes[node.id].title == "New Title"
+    def test_update_memory_content(self, memory_graph):
+        node = memory_graph.create_memory("Old Content")
+        updated = memory_graph.update_memory(node.id, content="New Content")
+        assert updated.content == "New Content"
+        assert memory_graph._nodes[node.id].content == "New Content"
 
-    def test_update_memory_detail(self, memory_graph):
+    def test_update_memory_extraneous_detail(self, memory_graph):
         node = memory_graph.create_memory("Test")
-        memory_graph.update_memory(node.id, detail="Updated detail")
-        assert memory_graph._nodes[node.id].detail == "Updated detail"
+        memory_graph.update_memory(node.id, extraneous_detail="Updated detail")
+        assert memory_graph._nodes[node.id].extraneous_detail == "Updated detail"
 
     def test_update_memory_links(self, memory_graph):
         a = memory_graph.create_memory("A")
@@ -55,13 +55,13 @@ class TestMemoryGraphCRUD:
         assert a.linked_ids == [b.id]
 
     def test_update_memory_nonexistent(self, memory_graph):
-        result = memory_graph.update_memory("nonexistent", title="New")
+        result = memory_graph.update_memory("nonexistent", content="New")
         assert result is None
 
     def test_update_resets_access_count(self, memory_graph):
         node = memory_graph.create_memory("Test")
         node.access_count = 5
-        memory_graph.update_memory(node.id, title="Updated")
+        memory_graph.update_memory(node.id, content="Updated")
         assert node.access_count == 0
 
     def test_delete_node(self, memory_graph):
@@ -116,7 +116,7 @@ class TestMemoryGraphNavigation:
 
 class TestMemoryGraphReadDetail:
     def test_read_detail_basic(self, memory_graph):
-        node = memory_graph.create_memory("Test", detail="Detail text")
+        node = memory_graph.create_memory("Test", extraneous_detail="Detail text")
         detail = memory_graph.read_detail(node.id)
         assert node.id in detail
         assert "Test" in detail
@@ -125,7 +125,7 @@ class TestMemoryGraphReadDetail:
     def test_read_detail_no_detail(self, memory_graph):
         node = memory_graph.create_memory("Minimal")
         detail = memory_graph.read_detail(node.id)
-        assert "No further details" in detail
+        assert "Extraneous detail:" in detail
 
     def test_read_detail_increments_access(self, memory_graph):
         node = memory_graph.create_memory("Test")
@@ -179,7 +179,7 @@ class TestMemoryGraphContext:
         memory_graph.create_memory("NonRoot")
         roots = memory_graph.get_root_nodes()
         assert len(roots) == 1
-        assert roots[0].title == "Root"
+        assert roots[0].content == "Root"
 
     def test_get_all_nodes(self, memory_graph):
         memory_graph.create_memory("A")
@@ -194,7 +194,7 @@ class TestMemoryGraphSleepContext:
         assert ctx == "[no memories in range]"
 
     def test_sleep_context_basic(self, memory_graph):
-        node = memory_graph.create_memory("Test", detail="Detail")
+        node = memory_graph.create_memory("Test", extraneous_detail="Detail")
         ctx = memory_graph.generate_sleep_context(0, time.time() + 1)
         assert node.id in ctx
         assert "Test" in ctx
@@ -225,7 +225,7 @@ class TestMemoryGraphMigration:
         node = g._nodes["abc"]
         assert node.is_root
         assert "def" in node.linked_ids
-        assert node.title == "Old Node"
+        assert node.content == "Old Node"
 
     def test_v1_to_v2_with_parent(self, memory_graph_path):
         v1_data = {

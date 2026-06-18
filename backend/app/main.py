@@ -695,16 +695,16 @@ async def execute_chat_tool(tool_name: str, tool_args: Dict[str, Any], session_i
             return executor.read_detail(tool_args.get("key", ""), sleep_mode=sleep_mode)
         elif tool_name == "create_memory":
             return executor.create_memory(
-                title=tool_args.get("title", ""),
-                detail=tool_args.get("detail", ""),
+                content=tool_args.get("content", ""),
+                extraneous_detail=tool_args.get("extraneous_detail", ""),
                 linked_ids=tool_args.get("linked_ids", ""),
                 is_root=tool_args.get("is_root", False),
             )
         elif tool_name == "update_memory":
             return executor.update_memory(
                 node_id=tool_args.get("id", ""),
-                title=tool_args.get("title", ""),
-                detail=tool_args.get("detail", ""),
+                content=tool_args.get("content", ""),
+                extraneous_detail=tool_args.get("extraneous_detail", ""),
                 linked_ids=tool_args.get("linked_ids", ""),
             )
         elif tool_name == "refine_memory_methodology":
