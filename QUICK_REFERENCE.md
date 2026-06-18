@@ -20,6 +20,13 @@ Then open **http://localhost:8000** in a browser.
 
 **Expected:** Web UI loads. Configure a task, click launch, watch agent execute in real-time.
 
+Tests:
+
+```bash
+cd backend
+source venv/bin/activate
+python -m pytest tests/ -v
+```
 ---
 
 ## 🚨 Critical Prerequisites

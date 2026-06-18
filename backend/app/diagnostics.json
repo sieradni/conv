@@ -1,0 +1,103 @@
+{
+  "generation_time_s": 0,
+  "tokens_per_second": 0,
+  "token_count": 0,
+  "history": [
+    {
+      "timestamp": 1781823857.2817676,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781823934.9329765,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824093.215129,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824207.1831274,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824257.0715864,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824277.795021,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824458.4445183,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824618.818527,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824770.5944288,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824782.331667,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824803.2012825,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824828.3421152,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824869.9906256,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824887.8696654,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824908.407044,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781824940.0034068,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import re
 import os
 import time
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -28,7 +29,13 @@ logging.basicConfig(level=logging.INFO, format="[%(name)s] %(levelname)s: %(mess
 logger = logging.getLogger("main")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-app = FastAPI(title="conv dev framework")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(sleep_loop(interval_seconds=3600))
+    logger.info("Sleep flow loop started (every 3600s)")
+    yield
+
+app = FastAPI(title="conv dev framework", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -1443,14 +1450,6 @@ async def record_diagnostics(payload: DiagnosticsPayload):
     data["history"] = data["history"][-100:]
     DIAG_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return {"status": "recorded"}
-
-
-# ── Startup / Shutdown ────────────────────────────────────────────
-
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(sleep_loop(interval_seconds=3600))
-    logger.info("Sleep flow loop started (every 3600s)")
 
 
 # ── Static files ──────────────────────────────────────────────────
