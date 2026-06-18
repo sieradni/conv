@@ -523,18 +523,24 @@ def _resolve_framework_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
-def _build_sandbox() -> tuple[LocalSandbox, ToolExecutor]:
-    """Build a sandbox with all scopes and a tool executor."""
-    sandbox = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
+def _sandbox_root() -> Path:
+    """Resolve the sandbox workspace directory (project-root sandbox/)."""
+    return _resolve_framework_root() / "sandbox"
 
-    # Register framework scope (for reading live source files)
-    sandbox.add_scope("framework", _resolve_framework_root())
 
-    # Register shadow scope (if shadow has been initialized)
+def _make_sandbox() -> LocalSandbox:
+    """Create a LocalSandbox with all scopes registered."""
+    sb = LocalSandbox(workspace_dir=str(_sandbox_root()))
+    sb.add_scope("framework", _resolve_framework_root())
     shadow = get_shadow_sandbox()
     if shadow.shadow_dir:
-        sandbox.add_scope("shadow", shadow.shadow_dir)
+        sb.add_scope("shadow", shadow.shadow_dir)
+    return sb
 
+
+def _build_sandbox() -> tuple[LocalSandbox, ToolExecutor]:
+    """Build a sandbox with all scopes and a tool executor."""
+    sandbox = _make_sandbox()
     executor = ToolExecutor(sandbox)
     return sandbox, executor
 
@@ -547,15 +553,7 @@ def _framework_write_via_shadow(tool_name: str, tool_args: Dict[str, Any]) -> st
     shadow = get_shadow_sandbox()
     if shadow.status == "IDLE":
         shadow.create_shadow()
-        # Re-register shadow scope
-        sandbox_for_read = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
-        sandbox_for_read.add_scope("framework", _resolve_framework_root())
-        sandbox_for_read.add_scope("shadow", shadow.shadow_dir)
-    else:
-        sandbox_for_read = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
-        sandbox_for_read.add_scope("framework", _resolve_framework_root())
-        if shadow.shadow_dir:
-            sandbox_for_read.add_scope("shadow", shadow.shadow_dir)
+    sandbox_for_read = _make_sandbox()
 
     file_path = tool_args.get("file_path", "")
     scope = tool_args.get("scope", "framework")
@@ -968,7 +966,7 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
                 review = await overseer.review_action(
                     tool_name=tool_name, tool_args=tool_args,
                     thought=content_buffer[:500], previous_block=previous_block,
-                    sandbox_dir=os.path.join(os.getcwd(), "sandbox_ui"),
+                    sandbox_dir=str(_sandbox_root()),
                 )
                 review_status = review.get("status", "REJECTED").upper()
                 review_reasoning = review.get("reasoning", "")

@@ -14,8 +14,8 @@ def test_sandbox():
     print("SANDBOX BOUNDARY PROTECTION TEST")
     print("=" * 60)
     
-    # Initialize sandbox pointing to absolute path
-    sandbox = LocalSandbox(workspace_dir="/home/sieradni/conv/agent-framework/sandbox")
+    # Initialize sandbox pointing to project-root sandbox/
+    sandbox = LocalSandbox(workspace_dir="../sandbox")
     print(f"\n[*] Sandbox workspace: {sandbox.workspace_path}")
     
     # Test 1: Write a file inside sandbox

@@ -12,7 +12,7 @@ IMPORTANT RULES:
 Available tools:
 
 **File I/O (scope-aware, all support scope parameter):**
-Values for scope: "default" (sandbox_ui/), "framework" (live framework root — read-only), "shadow" (shadow copy if self-dev initialized).
+Values for scope: "default" (sandbox/), "framework" (live framework root — read-only), "shadow" (shadow copy if self-dev initialized).
 1. read_file (read-only, no approval needed) — Args: {"path": "relative/path", "scope": "default"}
    Reads a file and returns its content with 1-indexed line numbers. Use scope="framework" to read live source files for self-modification. Use scope="shadow" to read files in the shadow copy.
 2. write_file (requires user approval) — Args: {"path": "relative/path", "content": "file content", "scope": "default"}

@@ -17,6 +17,8 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
+from app.sandbox import LocalSandbox
+
 logger = logging.getLogger("self_dev")
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parent.parent.parent  # agent-framework/
@@ -30,6 +32,7 @@ class ShadowSandbox:
 
     def __init__(self):
         self._shadow_dir: Optional[Path] = None
+        self._sandbox: Optional[LocalSandbox] = None
         self._proposed_changes: List[Dict[str, Any]] = []
         self._test_results: Optional[Dict[str, Any]] = None
         self._status: str = "IDLE"  # IDLE, COPYING, TESTING, READY, DEPLOYED, FAILED
@@ -50,6 +53,7 @@ class ShadowSandbox:
         self._proposed_changes = []
         self._test_results = None
         self._shadow_dir = Path(tempfile.mkdtemp(prefix="agent_shadow_"))
+        self._sandbox = LocalSandbox(str(self._shadow_dir))
         self._status = "COPYING"
 
         # Copy backend/ and frontend/
@@ -76,21 +80,21 @@ class ShadowSandbox:
 
     def apply_change(self, file_path: str, content: str) -> str:
         """Apply a file change inside the shadow copy."""
-        if not self._shadow_dir or not self._shadow_dir.exists():
+        if not self._sandbox:
             return "Error: No shadow directory. Call create_shadow first."
 
         rel = Path(file_path)
         if rel.is_absolute():
             return "Error: Use relative paths within the framework."
 
-        # Map common prefixes
+        # Map common prefixes: if path already starts with backend/ or frontend/,
+        # use it as-is; otherwise prepend backend/
         if rel.parts and rel.parts[0] in ("backend", "frontend"):
-            target = self._shadow_dir / rel
+            subpath = str(rel)
         else:
-            target = self._shadow_dir / "backend" / rel
+            subpath = str(Path("backend") / rel)
 
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        self._sandbox.write_file(subpath, content)
 
         self._proposed_changes.append({
             "file_path": str(rel),
@@ -204,6 +208,7 @@ class ShadowSandbox:
         if self._shadow_dir and self._shadow_dir.exists():
             shutil.rmtree(self._shadow_dir)
             self._shadow_dir = None
+            self._sandbox = None
             self._proposed_changes = []
             self._status = "IDLE"
 
