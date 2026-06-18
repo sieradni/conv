@@ -4,7 +4,7 @@ import subprocess
 import os
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from app.sandbox import LocalSandbox
 
@@ -21,25 +21,31 @@ class ToolExecutor:
         self.sandbox = sandbox
         self.execution_log = []
     
-    def write_file(self, path: str, content: str) -> str:
+    # ── Internal helpers ──────────────────────────────────────────
+
+    def _read_raw(self, path: str, scope: str = "default") -> str:
+        """Read raw file content (no line numbers) — for internal use by edit tools."""
+        return self.sandbox.read_file(path, scope=scope)
+
+    # ── File I/O Tools ──────────────────────────────────────────────
+
+    def write_file(self, path: str, content: str, scope: str = "default") -> str:
         """Write content to a file in the sandbox.
         
         Args:
             path: Relative path within the sandbox
             content: String content to write
+            scope: Named scope (default: 'default')
         
         Returns:
             Success message
-        
-        Raises:
-            PermissionError: If path escapes sandbox
-            Exception: For other write errors
         """
         try:
-            result = self.sandbox.write_file(path, content)
+            result = self.sandbox.write_file(path, content, scope=scope)
             self.execution_log.append({
                 "tool": "write_file",
                 "path": path,
+                "scope": scope,
                 "status": "success",
                 "message": result
             })
@@ -49,29 +55,32 @@ class ToolExecutor:
             self.execution_log.append({
                 "tool": "write_file",
                 "path": path,
+                "scope": scope,
                 "status": "failed",
                 "error": str(e)
             })
             raise Exception(error_msg)
     
-    def read_file(self, path: str) -> str:
-        """Read content from a file in the sandbox.
+    def read_file(self, path: str, scope: str = "default") -> str:
+        """Read content from a file in the sandbox with line numbers.
         
         Args:
             path: Relative path within the sandbox
+            scope: Named scope (default: 'default')
         
         Returns:
-            File content as a string
+            File content with 1-indexed line numbers
         
         Raises:
             PermissionError: If path escapes sandbox
             FileNotFoundError: If file does not exist
         """
         try:
-            content = self.sandbox.read_file(path)
+            content = self.sandbox.read_file_numbered(path, scope=scope)
             self.execution_log.append({
                 "tool": "read_file",
                 "path": path,
+                "scope": scope,
                 "status": "success",
                 "bytes_read": len(content)
             })
@@ -81,6 +90,7 @@ class ToolExecutor:
             self.execution_log.append({
                 "tool": "read_file",
                 "path": path,
+                "scope": scope,
                 "status": "failed",
                 "error": str(e)
             })
@@ -147,7 +157,125 @@ class ToolExecutor:
                 "error": str(e)
             })
             raise Exception(error_msg)
-    
+
+    # ── Surgical Edit Tools ─────────────────────────────────────────
+
+    def _parse_lines(self, path: str, scope: str = "default") -> tuple[list[str], str]:
+        """Read a file and return (lines, original_content)."""
+        raw = self._read_raw(path, scope=scope)
+        lines = raw.split("\n")
+        return lines, raw
+
+    def replace_lines(self, file_path: str, start_line: int, end_line: int,
+                      new_content: str, scope: str = "default") -> str:
+        """Replace lines start_line..end_line (1-indexed, inclusive) with new_content.
+        
+        Args:
+            file_path: Path relative to the scope root
+            start_line: First line to replace (1-indexed)
+            end_line: Last line to replace (1-indexed)
+            new_content: Replacement text (may be multiple lines)
+            scope: Named scope (default: 'default')
+        
+        Returns:
+            Success message with line range
+        """
+        try:
+            lines, _ = self._parse_lines(file_path, scope=scope)
+            n = len(lines)
+            if start_line < 1 or end_line > n or start_line > end_line:
+                return f"Error: invalid line range {start_line}-{end_line} (file has {n} lines)"
+            new_lines = new_content.split("\n")
+            result = lines[:start_line - 1] + new_lines + lines[end_line:]
+            self.sandbox.write_file(file_path, "\n".join(result), scope=scope)
+            self.execution_log.append({
+                "tool": "replace_lines",
+                "path": file_path,
+                "scope": scope,
+                "start_line": start_line,
+                "end_line": end_line,
+                "status": "success",
+            })
+            return f"Replaced lines {start_line}-{end_line} in {file_path} ({len(new_lines)} lines inserted)"
+        except Exception as e:
+            self.execution_log.append({
+                "tool": "replace_lines", "path": file_path, "scope": scope,
+                "status": "failed", "error": str(e),
+            })
+            return f"Error replacing lines: {e}"
+
+    def insert_lines(self, file_path: str, line_number: int,
+                     new_content: str, scope: str = "default") -> str:
+        """Insert new_content after the specified line (1-indexed).
+        
+        To insert at the very beginning, use line_number=0.
+        
+        Args:
+            file_path: Path relative to the scope root
+            line_number: Insert after this line (0 = before first line)
+            new_content: Text to insert (may be multiple lines)
+            scope: Named scope (default: 'default')
+        
+        Returns:
+            Success message
+        """
+        try:
+            lines, _ = self._parse_lines(file_path, scope=scope)
+            n = len(lines)
+            if line_number < 0 or line_number > n:
+                return f"Error: invalid line number {line_number} (file has {n} lines)"
+            new_lines = new_content.split("\n")
+            result = lines[:line_number] + new_lines + lines[line_number:]
+            self.sandbox.write_file(file_path, "\n".join(result), scope=scope)
+            self.execution_log.append({
+                "tool": "insert_lines",
+                "path": file_path,
+                "scope": scope,
+                "line_number": line_number,
+                "status": "success",
+            })
+            return f"Inserted {len(new_lines)} line(s) after line {line_number} in {file_path}"
+        except Exception as e:
+            self.execution_log.append({
+                "tool": "insert_lines", "path": file_path, "scope": scope,
+                "status": "failed", "error": str(e),
+            })
+            return f"Error inserting lines: {e}"
+
+    def append_to_file(self, file_path: str, content: str,
+                       scope: str = "default") -> str:
+        """Append content to the end of a file.
+        
+        Args:
+            file_path: Path relative to the scope root
+            content: Text to append
+            scope: Named scope (default: 'default')
+        
+        Returns:
+            Success message
+        """
+        try:
+            raw = self._read_raw(file_path, scope=scope)
+            separator = "" if raw.endswith("\n") else "\n"
+            new_raw = raw + separator + content
+            self.sandbox.write_file(file_path, new_raw, scope=scope)
+            self.execution_log.append({
+                "tool": "append_to_file",
+                "path": file_path,
+                "scope": scope,
+                "status": "success",
+            })
+            appended_lines = content.count("\n") + 1
+            return f"Appended {appended_lines} line(s) to {file_path}"
+        except Exception as e:
+            self.execution_log.append({
+                "tool": "append_to_file", "path": file_path, "scope": scope,
+                "status": "failed", "error": str(e),
+            })
+            return f"Error appending to file: {e}"
+
+    # ── Todo ────────────────────────────────────────────────────────
+
     def update_todo(self, key: str, value: Any) -> str:
         """Update the todo items file.
 

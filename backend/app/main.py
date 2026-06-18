@@ -193,7 +193,18 @@ async def submit_approval(payload: UserApprovalPayload):
 
 # ── Chat (ReAct Loop) ────────────────────────────────────────────
 
-REVIEW_TOOLS = {"read_file", "write_file", "run_command", "set_goal", "finish_task", "propose_change", "run_self_test", "deploy_change", "write_user_notes"}
+REVIEW_TOOLS = {"read_file", 
+                "write_file", 
+                "run_command", 
+                "set_goal", 
+                "finish_task", 
+                "propose_change", 
+                "run_self_test", 
+                "deploy_change", 
+                "write_user_notes", 
+                "replace_lines", 
+                "insert_lines", 
+                "append_to_file"}
 MAX_CHAT_ROUNDS = 50
 
 
@@ -507,31 +518,172 @@ def _normalize_js_to_json(text: str) -> str:
     return ', '.join(result)
 
 
+def _resolve_framework_root() -> Path:
+    """Resolve the framework root (agent-framework/ dir)."""
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def _build_sandbox() -> tuple[LocalSandbox, ToolExecutor]:
+    """Build a sandbox with all scopes and a tool executor."""
+    sandbox = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
+
+    # Register framework scope (for reading live source files)
+    sandbox.add_scope("framework", _resolve_framework_root())
+
+    # Register shadow scope (if shadow has been initialized)
+    shadow = get_shadow_sandbox()
+    if shadow.shadow_dir:
+        sandbox.add_scope("shadow", shadow.shadow_dir)
+
+    executor = ToolExecutor(sandbox)
+    return sandbox, executor
+
+
+def _framework_write_via_shadow(tool_name: str, tool_args: Dict[str, Any]) -> str:
+    """Route a framework-scoped write through the shadow sandbox.
+    
+    Reads the current framework file, applies the edit, writes to shadow.
+    """
+    shadow = get_shadow_sandbox()
+    if shadow.status == "IDLE":
+        shadow.create_shadow()
+        # Re-register shadow scope
+        sandbox_for_read = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
+        sandbox_for_read.add_scope("framework", _resolve_framework_root())
+        sandbox_for_read.add_scope("shadow", shadow.shadow_dir)
+    else:
+        sandbox_for_read = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
+        sandbox_for_read.add_scope("framework", _resolve_framework_root())
+        if shadow.shadow_dir:
+            sandbox_for_read.add_scope("shadow", shadow.shadow_dir)
+
+    file_path = tool_args.get("file_path", "")
+    scope = tool_args.get("scope", "framework")
+
+    if tool_name in ("replace_lines", "insert_lines", "append_to_file"):
+        # Read current framework file raw
+        try:
+            raw = sandbox_for_read.read_file(file_path, scope="framework")
+        except FileNotFoundError:
+            return f"Error: file '{file_path}' not found in framework"
+        except Exception as e:
+            return f"Error reading framework file: {e}"
+
+        # Apply the edit to the raw content
+        if tool_name == "replace_lines":
+            start_line = int(tool_args.get("start_line", 0))
+            end_line = int(tool_args.get("end_line", 0))
+            new_content = tool_args.get("new_content", "")
+            lines = raw.split("\n")
+            n = len(lines)
+            if start_line < 1 or end_line > n or start_line > end_line:
+                return f"Error: invalid line range {start_line}-{end_line} (file has {n} lines)"
+            new_lines = new_content.split("\n")
+            result = "\n".join(lines[:start_line - 1] + new_lines + lines[end_line:])
+        elif tool_name == "insert_lines":
+            line_number = int(tool_args.get("line_number", 0))
+            new_content = tool_args.get("new_content", "")
+            lines = raw.split("\n")
+            n = len(lines)
+            if line_number < 0 or line_number > n:
+                return f"Error: invalid line number {line_number} (file has {n} lines)"
+            new_lines = new_content.split("\n")
+            result = "\n".join(lines[:line_number] + new_lines + lines[line_number:])
+        elif tool_name == "append_to_file":
+            new_content = tool_args.get("content", "")
+            separator = "" if raw.endswith("\n") else "\n"
+            result = raw + separator + new_content
+        else:
+            return f"Unknown edit tool: {tool_name}"
+
+        # Write to shadow
+        return shadow.apply_change(file_path, result)
+
+    return f"Unknown framework write tool: {tool_name}"
+
+
 async def execute_chat_tool(tool_name: str, tool_args: Dict[str, Any], session_id: str = "", sleep_mode: bool = False) -> str:
     """Execute a tool for the chat ReAct loop. Always returns a string."""
-    sandbox = LocalSandbox(workspace_dir=os.path.join(os.getcwd(), "sandbox_ui"))
-    executor = ToolExecutor(sandbox)
+    sandbox, executor = _build_sandbox()
 
     try:
+        # ── File I/O (scope-aware) ────────────────────────────────
         if tool_name == "read_file":
-            return str(executor.read_file(tool_args.get("path", "")))
+            path = tool_args.get("path", "")
+            scope = tool_args.get("scope", "default")
+            return str(executor.read_file(path, scope=scope))
+
         elif tool_name == "write_file":
-            return str(executor.write_file(tool_args.get("path", ""), tool_args.get("content", "")))
+            path = tool_args.get("path", "")
+            content = tool_args.get("content", "")
+            scope = tool_args.get("scope", "default")
+            if scope == "framework":
+                return _framework_write_via_shadow("write_file", {
+                    "file_path": path, "content": content, "scope": "framework",
+                })
+            return str(executor.write_file(path, content, scope=scope))
+
+        # ── Surgical Edit Tools ───────────────────────────────────
+        elif tool_name == "replace_lines":
+            scope = tool_args.get("scope", "default")
+            if scope == "framework":
+                return _framework_write_via_shadow("replace_lines", tool_args)
+            result = executor.replace_lines(
+                tool_args.get("file_path", ""),
+                int(tool_args.get("start_line", 0)),
+                int(tool_args.get("end_line", 0)),
+                tool_args.get("new_content", ""),
+                scope=scope,
+            )
+            return str(result)
+
+        elif tool_name == "insert_lines":
+            scope = tool_args.get("scope", "default")
+            if scope == "framework":
+                return _framework_write_via_shadow("insert_lines", tool_args)
+            result = executor.insert_lines(
+                tool_args.get("file_path", ""),
+                int(tool_args.get("line_number", 0)),
+                tool_args.get("new_content", ""),
+                scope=scope,
+            )
+            return str(result)
+
+        elif tool_name == "append_to_file":
+            scope = tool_args.get("scope", "default")
+            if scope == "framework":
+                return _framework_write_via_shadow("append_to_file", tool_args)
+            result = executor.append_to_file(
+                tool_args.get("file_path", ""),
+                tool_args.get("content", ""),
+                scope=scope,
+            )
+            return str(result)
+
+        # ── Command execution ─────────────────────────────────────
         elif tool_name == "run_command":
             return str(executor.run_command(tool_args.get("command", "")))
+
+        # ── Todo ──────────────────────────────────────────────────
         elif tool_name == "update_todo":
             result = executor.update_todo(tool_args.get("key", ""), tool_args.get("value", ""))
             return str(result)
+
+        # ── User Notes ────────────────────────────────────────────
         elif tool_name == "read_user_notes":
             return str(executor.read_user_notes())
         elif tool_name == "write_user_notes":
             return str(executor.write_user_notes(tool_args.get("content", "")))
+
+        # ── Goal ──────────────────────────────────────────────────
         elif tool_name == "set_goal":
             goal = tool_args.get("goal", "")
             session_obj = registry.get(session_id)
             if session_obj:
                 session_obj.current_goal = goal
             return f"Goal set: {goal}" if goal else "No goal provided"
+
+        # ── Memory Tools ──────────────────────────────────────────
         elif tool_name == "set_current_node":
             return executor.set_current_node(tool_args.get("node_id", ""))
         elif tool_name == "read_detail":
@@ -550,35 +702,44 @@ async def execute_chat_tool(tool_name: str, tool_args: Dict[str, Any], session_i
                 detail=tool_args.get("detail", ""),
                 linked_ids=tool_args.get("linked_ids", ""),
             )
+        elif tool_name == "refine_memory_methodology":
+            return executor.refine_memory_methodology(
+                tool_args.get("new_rules", ""),
+                tool_args.get("reflection", "")
+            )
+
+        # ── Self-Development Pipeline ─────────────────────────────
         elif tool_name == "propose_change":
             shadow = get_shadow_sandbox()
             if shadow.status == "IDLE":
                 shadow.create_shadow()
             return shadow.apply_change(tool_args.get("file_path", ""), tool_args.get("content", ""))
+
         elif tool_name == "run_self_test":
             shadow = get_shadow_sandbox()
             if shadow.status == "IDLE":
                 return "No shadow initialized. Use propose_change first."
             results = await asyncio.to_thread(shadow.run_tests)
             return json.dumps(results, indent=2) if isinstance(results, dict) else str(results)
+
         elif tool_name == "deploy_change":
             shadow = get_shadow_sandbox()
             if shadow.status == "IDLE":
                 return "No shadow initialized."
             return shadow.deploy_to_live()
+
+        # ── Communication & Control ───────────────────────────────
         elif tool_name == "ask_user":
             question = tool_args.get("question", "")
             return f"[ASK_USER:{question}]"
+
         elif tool_name == "finish_task":
             summary = tool_args.get("summary", "")
             return f"[FINISH_TASK:{summary}]"
-        elif tool_name == "refine_memory_methodology":
-            return executor.refine_memory_methodology(
-                tool_args.get("new_rules", ""),
-                tool_args.get("reflection", "")
-            )
+
         else:
             return f"Unknown tool: {tool_name}"
+
     except Exception as e:
         import traceback
         return f"Error: {e}\n{traceback.format_exc()}"

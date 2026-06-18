@@ -8,7 +8,7 @@
       "is_root": true,
       "access_count": 0,
       "created_at": 1781686020.5129101,
-      "updated_at": 1781686020.5129108
+      "updated_at": 1781740476.9197931
     },
     {
       "id": "cde9f0c99aca",
@@ -28,9 +28,19 @@
         "cde9f0c99aca"
       ],
       "is_root": true,
-      "access_count": 3,
+      "access_count": 0,
       "created_at": 1781688805.666463,
       "updated_at": 1781691397.4624178
+    },
+    {
+      "id": "8940e07d02f5",
+      "title": "User Notes Policy",
+      "detail": "Do not rely on `user_notes` for guidance or instructions unless specifically requested by the user. User notes are primarily for the user. If information is missing or a persistent rule is needed, create a memory node instead of searching user notes.",
+      "linked_ids": [],
+      "is_root": false,
+      "access_count": 0,
+      "created_at": 1781740797.4908047,
+      "updated_at": 1781740797.490805
     }
   ],
   "current_node_id": "a09347b74df2",

@@ -47,6 +47,8 @@ class ShadowSandbox:
         if self._shadow_dir and self._shadow_dir.exists():
             shutil.rmtree(self._shadow_dir)
 
+        self._proposed_changes = []
+        self._test_results = None
         self._shadow_dir = Path(tempfile.mkdtemp(prefix="agent_shadow_"))
         self._status = "COPYING"
 
