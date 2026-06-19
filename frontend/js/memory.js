@@ -70,6 +70,9 @@ async function loadSleepTimerange() {
     const from = $('sleep-from');
     const to = $('sleep-to');
     if (from) from.value = fmtUtc(min).slice(0, 16);
-    if (to) to.value = fmtUtc(max).slice(0, 16);
+    if (to) {
+      const roundedMax = max + 60;  // add 1m to avoid minute-boundary exclusion
+      to.value = fmtUtc(roundedMax).slice(0, 16);
+    }
   } catch(_) {}
 }

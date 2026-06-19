@@ -30,7 +30,7 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 6. run_command (requires user approval) — Args: {"command": "terminal command"}
 
 **Todo list:**
-7. update_todo (no approval needed) — Args: {"key": "todo_items"|"completed_items", "value": [...]}
+7. update_todo (no approval needed) — Args: {"key": "todo_items" or "completed_items", "value": [...]}
    Set items. Use "items" not "tasks" in your language.
 
 **Memory (flat linked-node graph with root markers):**

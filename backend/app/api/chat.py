@@ -123,6 +123,33 @@ async def submit_approval(payload: UserApprovalPayload):
     return {"status": "received"}
 
 
+# ── Thinking level ────────────────────────────────────────────────
+
+_VALID_THINKING_LEVELS = ("", "off", "low", "medium", "high")
+
+
+class ThinkingLevelPayload(BaseModel):
+    level: str = ""
+
+
+@router.post("/api/chat/thinking-level")
+async def set_thinking_level(payload: ThinkingLevelPayload):
+    """Set reasoning/thinking effort for subsequent chat requests.
+
+    Empty string = model default.
+    Valid: "", "off", "low", "medium", "high"
+    """
+    if payload.level not in _VALID_THINKING_LEVELS:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid thinking level '{payload.level}'. Valid: {_VALID_THINKING_LEVELS}",
+        )
+    conv = get_conversation()
+    conv.set_thinking_level(payload.level)
+    return {"status": "ok", "thinking_level": conv.thinking_level}
+
+
 # ── Sleep mode ─────────────────────────────────────────────────────
 
 

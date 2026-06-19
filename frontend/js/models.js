@@ -2,6 +2,8 @@
 
 /* ── Model Management ─────────────────────────────────────────── */
 
+let _modelListData = {};  // keyed by model key
+
 async function loadModelList() {
   const listEl = $('model-list');
   const activeEl = $('model-active');
@@ -13,6 +15,12 @@ async function loadModelList() {
     const r = await fetch('/api/models');
     const d = await r.json();
     const models = d.models || [];
+
+    // Cache for later lookups
+    _modelListData = {};
+    for (const m of models) {
+      if (m.key) _modelListData[m.key] = m;
+    }
 
     // Show active model
     const activeR = await fetch('/api/models/active');
@@ -33,6 +41,7 @@ async function loadModelList() {
       const params = m.params_string || '';
       const quant = m.quantization ? (m.quantization.name || '') : '';
       const isLoaded = m.loaded_instances && m.loaded_instances.length > 0;
+      const instanceId = isLoaded ? m.loaded_instances[0].id : null;
       const capVision = m.capabilities?.vision ? 'V' : '';
       const capTools = m.capabilities?.trained_for_tool_use ? 'T' : '';
       const caps = [capVision, capTools].filter(Boolean).join('/');
@@ -50,7 +59,10 @@ async function loadModelList() {
           ${quant ? `<span>${escapeHtml(quant)}</span>` : ''}
           ${m.format ? `<span>${escapeHtml(m.format)}</span>` : ''}
         </div>
-        ${!isLoaded ? `<button onclick="loadModelClick('${escapeHtml(m.key)}', event)" class="mt-1.5 px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded text-[8px] font-bold text-indigo-400 transition">load</button>` : ''}
+        <div class="flex gap-1.5 mt-1.5">
+          ${!isLoaded ? `<button onclick="loadModelClick('${escapeHtml(m.key)}', event)" class="px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded text-[8px] font-bold text-indigo-400 transition">load</button>` : ''}
+          ${isLoaded && instanceId ? `<button onclick="unloadModelClick('${escapeHtml(instanceId)}', event)" class="px-2 py-1 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded text-[8px] font-bold text-rose-400 transition">unload</button>` : ''}
+        </div>
       </div>`;
     }
     listEl.innerHTML = html;
@@ -61,15 +73,16 @@ async function loadModelList() {
 }
 
 async function loadModelClick(modelKey, evt) {
-  const contextLength = prompt('Context length (default 4096):', '4096');
-  if (contextLength === null) return;
-  const flashAttention = confirm('Enable flash attention?');
+  const modelInfo = _modelListData[modelKey] || {};
+  const maxCtx = modelInfo.max_context_length;
+  const hint = maxCtx ? ` (max ${maxCtx}, default 8192)` : ' (default 8192)';
+  const ctxStr = prompt(`Context length${hint}:`, '8192');
+  if (ctxStr === null) return;
 
   const payload = { model: modelKey };
-  if (contextLength) payload.context_length = parseInt(contextLength);
-  if (flashAttention) payload.flash_attention = true;
+  if (ctxStr) payload.context_length = parseInt(ctxStr);
 
-  const btn = (evt || window.event)?.target;
+  const btn = evt?.target;
   if (btn) { btn.disabled = true; btn.textContent = 'loading...'; }
 
   try {
@@ -83,5 +96,24 @@ async function loadModelClick(modelKey, evt) {
   } catch(e) {
     showToast(`Load failed: ${e.message}`);
     if (btn) { btn.disabled = false; btn.textContent = 'load'; }
+  }
+}
+
+async function unloadModelClick(instanceId, evt) {
+  const btn = evt?.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'unloading...'; }
+
+  try {
+    const r = await fetch('/api/models/unload', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ instance_id: instanceId })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    showToast(`Model unloaded: ${instanceId}`);
+    loadModelList();
+  } catch(e) {
+    showToast(`Unload failed: ${e.message}`);
+    if (btn) { btn.disabled = false; btn.textContent = 'unload'; }
   }
 }

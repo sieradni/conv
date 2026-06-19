@@ -4,6 +4,7 @@ Legacy path:  /v1/chat/completions  (OpenAI-compatible, for fallback)
 New path:     /api/v1/chat          (native LM Studio SSE typed events)
               /api/v1/models        (model listing)
               /api/v1/models/load   (dynamic model loading)
+              /api/v1/models/unload (unload a model)
 """
 
 import json
@@ -178,6 +179,28 @@ class LMStudioClient:
     def _v2_url(self, path: str) -> str:
         return f"{LM_STUDIO_V2_URL}{path}"
 
+    @staticmethod
+    def _convert_messages_to_v2_input(messages: list) -> tuple[str, str]:
+        """Convert OpenAI-style messages to LM Studio v2 payload format.
+
+        Extracts the system message content for the system_prompt field,
+        and concatenates all other messages with role markers into a
+        single input string.
+
+        Returns (system_prompt, input_string).
+        """
+        system_prompt = ""
+        parts = []
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                if content:
+                    system_prompt = content
+            else:
+                parts.append(f"[{role}]\n{content}")
+        return system_prompt, "\n\n".join(parts)
+
     # ── Model info (shared between legacy and v2) ──────────────────
 
     async def get_models_legacy(self) -> Optional[dict]:
@@ -190,6 +213,9 @@ class LMStudioClient:
         except httpx.RequestError as e:
             logger.warning(f"Legacy models request failed: {e}")
             return None
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Legacy models HTTP error: {e.response.status_code}")
+            return None
 
     async def get_models_v2(self) -> Optional[dict]:
         """New /api/v1/models — returns available + loaded instances."""
@@ -200,6 +226,9 @@ class LMStudioClient:
                 return r.json()
         except httpx.RequestError as e:
             logger.warning(f"V2 models request failed: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"V2 models HTTP error: {e.response.status_code}")
             return None
 
     async def load_model(self, model: str, **kwargs) -> Optional[dict]:
@@ -216,6 +245,24 @@ class LMStudioClient:
                 return r.json()
         except httpx.RequestError as e:
             logger.warning(f"Model load request failed: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Model load HTTP error: {e.response.status_code}")
+            return None
+
+    async def unload_model(self, instance_id: str) -> Optional[dict]:
+        """POST /api/v1/models/unload — unload a model instance."""
+        payload = {"instance_id": instance_id}
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                r = await client.post(self._v2_url("/models/unload"), json=payload)
+                r.raise_for_status()
+                return r.json()
+        except httpx.RequestError as e:
+            logger.warning(f"Model unload request failed: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Model unload HTTP error: {e.response.status_code}")
             return None
 
     # ── Legacy streaming (OpenAI-compatible) ──────────────────────
@@ -258,6 +305,9 @@ class LMStudioClient:
         except httpx.RequestError as e:
             logger.error(f"Legacy stream error: {e}")
             yield ("content", f"\n[Stream error: {e}]")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Legacy stream HTTP error: {e.response.status_code}")
+            yield ("content", f"\n[Stream error: HTTP {e.response.status_code}]")
 
     async def chat_completion_legacy(
         self, model: str, messages: list, temperature: float = 0.7, **kwargs
@@ -279,6 +329,9 @@ class LMStudioClient:
         except httpx.RequestError as e:
             logger.error(f"Legacy completion error: {e}")
             return None
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Legacy completion HTTP error: {e.response.status_code}")
+            return None
 
     # ── V2 streaming (native LM Studio SSE events) ────────────────
 
@@ -296,9 +349,13 @@ class LMStudioClient:
         Kwargs: top_p, top_k, min_p, repeat_penalty, max_output_tokens,
                 reasoning, context_length, store, previous_response_id
         """
+        # Convert messages to v2 input format
+        extracted_sp, input_value = self._convert_messages_to_v2_input(messages)
+        system_prompt = system_prompt or extracted_sp
+
         payload = {
             "model": model,
-            "input": messages,
+            "input": input_value,
             "stream": True,
             "temperature": temperature,
             "store": kwargs.pop("store", False),
@@ -319,7 +376,6 @@ class LMStudioClient:
                     async for line in response.aiter_lines():
                         line = line.strip()
                         if line.startswith("event: "):
-                            # Flush previous event
                             if current_event and current_data_lines:
                                 yield self._parse_event(
                                     current_event, "".join(current_data_lines)
@@ -336,7 +392,6 @@ class LMStudioClient:
                             current_event = ""
                             current_data_lines = []
 
-                    # Flush remaining
                     if current_event and current_data_lines:
                         yield self._parse_event(
                             current_event, "".join(current_data_lines)
@@ -346,6 +401,11 @@ class LMStudioClient:
             logger.error(f"V2 stream error: {e}")
             yield StreamError(
                 error={"type": "connection_error", "message": str(e)}
+            )
+        except httpx.HTTPStatusError as e:
+            logger.error(f"V2 stream HTTP error: {e.response.status_code}")
+            yield StreamError(
+                error={"type": "http_error", "message": f"HTTP {e.response.status_code}"}
             )
 
     def _parse_event(self, event_type: str, data_str: str) -> LMStudioEvent:
@@ -455,9 +515,12 @@ class LMStudioClient:
 
         Returns the full response dict with output, stats, etc.
         """
+        extracted_sp, input_value = self._convert_messages_to_v2_input(messages)
+        system_prompt = system_prompt or extracted_sp
+
         payload = {
             "model": model,
-            "input": messages,
+            "input": input_value,
             "stream": False,
             "temperature": temperature,
             "store": kwargs.pop("store", False),
@@ -473,4 +536,7 @@ class LMStudioClient:
                 return r.json()
         except httpx.RequestError as e:
             logger.error(f"V2 completion error: {e}")
+            return None
+        except httpx.HTTPStatusError as e:
+            logger.error(f"V2 completion HTTP error: {e.response.status_code}")
             return None

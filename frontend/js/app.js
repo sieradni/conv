@@ -30,4 +30,20 @@ function switchView(view) {
   loadSleepTimerange();
   checkLmStatus();
   setInterval(checkLmStatus, 10000);
+  initSystemMonitor();
+  loadThinkingLevel();
+
+  // Thinking level change handler
+  const tlSelect = $('thinking-level');
+  if (tlSelect) {
+    tlSelect.addEventListener('change', async () => {
+      try {
+        await fetch('/api/chat/thinking-level', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ level: tlSelect.value }),
+        });
+      } catch(_) {}
+    });
+  }
 })();

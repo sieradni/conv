@@ -64,8 +64,4 @@ def clean_state():
     core_manager._by_session.clear()
     from app.core.session import reset_conversation
     reset_conversation()
-    from app.core.config import TODO_FILE, DIAG_FILE, NOTES_FILE
-    for f in (TODO_FILE, DIAG_FILE, NOTES_FILE):
-        if f.exists():
-            f.unlink()
     yield

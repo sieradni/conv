@@ -125,6 +125,18 @@ async function saveNotes(silent) {
   } catch(_) {}
 }
 
+/* ── Thinking Level ───────────────────────────────────────────── */
+
+async function loadThinkingLevel() {
+  try {
+    const r = await fetch('/api/session');
+    const d = await r.json();
+    const level = d.thinking_level || '';
+    const sel = $('thinking-level');
+    if (sel) sel.value = level;
+  } catch(_) {}
+}
+
 /* ── LM Status polling ────────────────────────────────────────── */
 
 async function checkLmStatus() {

@@ -31,6 +31,7 @@ class Conversation:
         self.stop_requested: bool = False
         self.pause_requested: bool = False
         self.sleep_mode: bool = False
+        self.thinking_level: str = ""  # "" = model default, or "off"/"low"/"medium"/"high"
         self._resume_event: Any = None
         self.user_response_queue: asyncio.Queue = asyncio.Queue()
 
@@ -48,6 +49,7 @@ class Conversation:
                 self.current_goal = data.get("current_goal", "")
                 self.approval_mode = data.get("approval_mode", "WAIT_FOR_USER")
                 self.model_instance_id = data.get("model_instance_id", "")
+                self.thinking_level = data.get("thinking_level", "")
                 self.created_at = data.get("created_at", 0.0)
                 self.updated_at = data.get("updated_at", 0.0)
                 logger.info(f"Loaded session {self.session_id} ({len(self.chat_history)} messages)")
@@ -75,9 +77,10 @@ class Conversation:
             "current_goal": self.current_goal,
             "approval_mode": self.approval_mode,
             "model_instance_id": self.model_instance_id,
+            "thinking_level": self.thinking_level,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
-            "version": 1,
+            "version": 2,
         }
         SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = SESSION_FILE.with_suffix(".json.tmp")
@@ -121,10 +124,18 @@ class Conversation:
             "current_goal": self.current_goal,
             "approval_mode": self.approval_mode,
             "model_instance_id": self.model_instance_id,
+            "thinking_level": self.thinking_level,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "message_count": len(self.chat_history),
         }
+
+    def set_thinking_level(self, level: str):
+        valid = ("", "off", "low", "medium", "high")
+        if level not in valid:
+            raise ValueError(f"Invalid thinking level: {level}. Valid: {valid}")
+        self.thinking_level = level
+        self._save()
 
 
 # Singleton

@@ -7,36 +7,22 @@ BASE = Path(__file__).resolve().parent.parent / "app"
 
 
 @pytest.fixture(autouse=True)
-def reset_state():
+def reset_state(tmp_path):
+    import app.api.tools as tmod
     from app.memory_graph import set_memory_graph, MemoryGraph
     from app.core.session import reset_conversation
     from app.core.events import manager
-    import tempfile
-    set_memory_graph(MemoryGraph(str(Path(tempfile.mkdtemp()) / "mem.json")))
-    # Remove old session file so reset creates a fresh one
-    from app.core.config import SESSION_FILE
-    if SESSION_FILE.exists():
-        SESSION_FILE.unlink()
+    set_memory_graph(MemoryGraph(str(tmp_path / "mem.json")))
     reset_conversation()
     manager._global.clear()
     manager._by_session.clear()
-    todo_path = BASE / "todo.json"
-    notes_path = BASE / "user_notes.md"
-    todo_backup = todo_path.read_text(encoding="utf-8") if todo_path.exists() else None
-    notes_backup = notes_path.read_text(encoding="utf-8") if notes_path.exists() else None
-    if todo_path.exists():
-        todo_path.unlink()
-    if notes_path.exists():
-        notes_path.unlink()
-    yield
-    if todo_backup is not None:
-        todo_path.write_text(todo_backup, encoding="utf-8")
-    elif todo_path.exists():
-        todo_path.unlink()
-    if notes_backup is not None:
-        notes_path.write_text(notes_backup, encoding="utf-8")
-    elif notes_path.exists():
-        notes_path.unlink()
+    import app.api.notes as nmod
+    with (
+        patch.object(tmod, "TODO_FILE", tmp_path / "todo.json"),
+        patch.object(tmod, "DIAG_FILE", tmp_path / "diag.json"),
+        patch.object(nmod, "NOTES_FILE", tmp_path / "notes.md"),
+    ):
+        yield
 
 
 @pytest.fixture

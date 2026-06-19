@@ -102,6 +102,13 @@
         <button id="pause-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
         <button id="wake-btn" class="hidden px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition" title="End sleep mode">wake</button>
         <button id="fresh-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[10px] font-bold text-slate-300 transition">fresh chat</button>
+        <select id="thinking-level" class="bg-black/60 border border-white/10 rounded text-[9px] text-slate-400 px-1.5 py-1 focus:outline-none focus:border-indigo-500/50" title="Reasoning effort">
+          <option value="">reasoning: default</option>
+          <option value="off">reasoning: off</option>
+          <option value="low">reasoning: low</option>
+          <option value="medium">reasoning: medium &#9733;</option>
+          <option value="high">reasoning: high</option>
+        </select>
       </div>
     </div>
   </div>
@@ -243,6 +250,17 @@
   </div>
 </div>
 
+<!-- System Resources (bottom-right) -->
+<div id="sys-resources" class="fixed bottom-2 right-2 z-30 bg-black/70 border border-white/5 rounded-lg px-2.5 py-1 text-[8px] font-mono text-slate-500 flex flex-row items-center gap-2 pointer-events-none" style="display:none">
+  <span id="sys-cpu"></span>
+  <span id="sys-sep1" class="text-slate-700" style="display:none">|</span>
+  <span id="sys-mem"></span>
+  <span id="sys-sep2" class="text-slate-700" style="display:none">|</span>
+  <span id="sys-gpu"></span>
+  <span id="sys-sep3" class="text-slate-700" style="display:none">|</span>
+  <span id="sys-batt"></span>
+</div>
+
 <!-- Scripts -->
 <script src="/js/utils.js"></script>
 <script src="/js/chat.js"></script>
@@ -252,6 +270,7 @@
 <script src="/js/models.js"></script>
 <script src="/js/debug.js"></script>
 <script src="/js/settings.js"></script>
+<script src="/js/system.js"></script>
 <script src="/js/app.js"></script>
 
 <script>

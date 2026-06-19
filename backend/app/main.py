@@ -51,6 +51,7 @@ from app.api.memory import router as memory_router
 from app.api.notes import router as notes_router
 from app.api.tools import router as tools_router
 from app.api.self_dev import router as self_dev_router
+from app.api.system import router as system_router
 
 app.include_router(health_router)
 app.include_router(session_router)
@@ -60,6 +61,7 @@ app.include_router(memory_router)
 app.include_router(notes_router)
 app.include_router(tools_router)
 app.include_router(self_dev_router)
+app.include_router(system_router)
 
 
 # ── WebSocket ──────────────────────────────────────────────────────

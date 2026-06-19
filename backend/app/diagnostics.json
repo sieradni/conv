@@ -1,0 +1,16 @@
+{
+  "history": [
+    {
+      "timestamp": 1781838236.3642707,
+      "generation_time_s": 5.0,
+      "tokens_per_second": 10.0,
+      "token_count": 50
+    },
+    {
+      "timestamp": 1781838236.9208229,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    }
+  ]
+}

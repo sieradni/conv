@@ -135,6 +135,38 @@ class TestConversation:
         c = Conversation()
         assert isinstance(c.user_response_queue, asyncio.Queue)
 
+    def test_default_thinking_level(self):
+        from app.core.session import Conversation
+        c = Conversation()
+        assert c.thinking_level == ""
+
+    def test_set_thinking_level(self):
+        from app.core.session import Conversation
+        c = Conversation()
+        c.set_thinking_level("high")
+        assert c.thinking_level == "high"
+
+    def test_set_thinking_level_persists(self):
+        from app.core.session import Conversation, reset_conversation
+        c1 = Conversation()
+        c1.set_thinking_level("low")
+        reset_conversation()
+        c2 = Conversation()
+        assert c2.thinking_level == "low"
+
+    def test_set_thinking_level_invalid_raises(self):
+        from app.core.session import Conversation
+        c = Conversation()
+        with pytest.raises(ValueError):
+            c.set_thinking_level("invalid")
+
+    def test_thinking_level_in_to_dict(self):
+        from app.core.session import Conversation
+        c = Conversation()
+        c.set_thinking_level("low")
+        d = c.to_dict()
+        assert d["thinking_level"] == "low"
+
 
 class TestGetConversation:
     def test_get_conversation_singleton(self):

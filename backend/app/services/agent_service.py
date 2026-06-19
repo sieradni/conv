@@ -413,10 +413,14 @@ async def run_agent_loop(
 
         # ── Streaming LLM call (v2 API) ──────────────────────────
         try:
+            llm_kwargs = {}
+            if conv.thinking_level:
+                llm_kwargs["reasoning"] = conv.thinking_level
             async for event in lm_client.chat_completion_stream_v2(
                 model=model_id,
                 messages=messages,
                 temperature=0.7,
+                **llm_kwargs,
             ):
                 if conv.stop_requested and not sleep_mode:
                     raise asyncio.CancelledError()

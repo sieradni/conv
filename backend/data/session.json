@@ -1,10 +1,22 @@
 {
-  "session_id": "63dba7ff",
-  "chat_history": [],
+  "session_id": "b60fcdfd",
+  "chat_history": [
+    {
+      "role": "user",
+      "content": "Hi",
+      "timestamp": 1781838375.5348847
+    },
+    {
+      "role": "user",
+      "content": "clear the todolist",
+      "timestamp": 1781838739.7903252
+    }
+  ],
   "current_goal": "",
   "approval_mode": "WAIT_FOR_USER",
-  "model_instance_id": "gemma-4-12b-coder-fable5-composer2.5-v1@q2_k",
-  "created_at": 1781833018.6013803,
-  "updated_at": 1781833572.970387,
-  "version": 1
+  "model_instance_id": "google/gemma-4-12b-qat",
+  "thinking_level": "off",
+  "created_at": 1781838375.203933,
+  "updated_at": 1781838739.790327,
+  "version": 2
 }

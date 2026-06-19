@@ -124,49 +124,125 @@ class TestChatEndpoints:
 
 
 class TestToolsEndpoints:
-    def test_get_todos_default(self, client):
-        resp = client.get("/api/todos")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["todo_items"] == []
-        assert data["completed_items"] == []
+    def test_get_todos_default(self, client, tmp_path):
+        import app.api.tools as tmod
+        with patch.object(tmod, "TODO_FILE", tmp_path / "todo.json"):
+            resp = client.get("/api/todos")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["todo_items"] == []
+            assert data["completed_items"] == []
 
     def test_get_todos_with_file(self, client, tmp_path):
-        from app.core.config import TODO_FILE
-        todo = {"todo_items": ["task1"], "completed_items": []}
-        TODO_FILE.write_text(json.dumps(todo))
-        resp = client.get("/api/todos")
-        assert resp.status_code == 200
-        assert resp.json()["todo_items"] == ["task1"]
+        import app.api.tools as tmod
+        fake = tmp_path / "todo.json"
+        fake.write_text(json.dumps({"todo_items": ["task1"], "completed_items": []}))
+        with patch.object(tmod, "TODO_FILE", fake):
+            resp = client.get("/api/todos")
+            assert resp.status_code == 200
+            assert resp.json()["todo_items"] == ["task1"]
 
     def test_update_todos(self, client, tmp_path):
-        from app.core.config import TODO_FILE
-        TODO_FILE.write_text(json.dumps({"todo_items": [], "completed_items": []}))
-        resp = client.put("/api/todos", json={"message": '{"todo_items": ["a"]}'})
-        assert resp.status_code == 200
-        data = json.loads(TODO_FILE.read_text())
-        assert data["todo_items"] == ["a"]
+        import app.api.tools as tmod
+        fake = tmp_path / "todo.json"
+        fake.write_text(json.dumps({"todo_items": [], "completed_items": []}))
+        with patch.object(tmod, "TODO_FILE", fake):
+            resp = client.put("/api/todos", json={"message": '{"todo_items": ["a"]}'})
+            assert resp.status_code == 200
+            data = json.loads(fake.read_text())
+            assert data["todo_items"] == ["a"]
 
-    def test_get_diagnostics_default(self, client):
-        from app.core.config import DIAG_FILE
-        if DIAG_FILE.exists():
-            DIAG_FILE.unlink()
-        resp = client.get("/api/diagnostics")
-        assert resp.status_code == 200
-        assert resp.json()["history"] == []
+    def test_get_diagnostics_default(self, client, tmp_path):
+        import app.api.tools as tmod
+        with patch.object(tmod, "DIAG_FILE", tmp_path / "diag.json"):
+            resp = client.get("/api/diagnostics")
+            assert resp.status_code == 200
+            assert resp.json()["history"] == []
 
-    def test_record_diagnostics(self, client):
-        resp = client.post("/api/diagnostics/record", json={
-            "generation_time_s": 5.0,
-            "tokens_per_second": 10.0,
-            "token_count": 50,
-        })
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "recorded"
+    def test_record_diagnostics(self, client, tmp_path):
+        import app.api.tools as tmod
+        fake = tmp_path / "diag.json"
+        fake.write_text(json.dumps({"history": []}))
+        with patch.object(tmod, "DIAG_FILE", fake):
+            resp = client.post("/api/diagnostics/record", json={
+                "generation_time_s": 5.0,
+                "tokens_per_second": 10.0,
+                "token_count": 50,
+            })
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "recorded"
 
-    def test_get_state(self, client):
-        resp = client.get("/api/state")
+    def test_get_state(self, client, tmp_path):
+        import app.api.tools as tmod
+        fake_mem = tmp_path / "memory.json"
+        fake_mem.write_text(json.dumps({"nodes": [], "root_ids": [], "current_node_id": None}))
+        fake_rules = tmp_path / "rules.md"
+        fake_rules.write_text("")
+        with (
+            patch.object(tmod, "MEMORY_FILE", fake_mem),
+            patch.object(tmod, "MEMORY_RULES_FILE", fake_rules),
+        ):
+            resp = client.get("/api/state")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "memory" in data
+            assert "rules" in data
+
+
+class TestThinkingLevel:
+    def test_set_thinking_level_default(self, client):
+        resp = client.post("/api/chat/thinking-level", json={"level": ""})
         assert resp.status_code == 200
-        data = resp.json()
-        assert "memory" in data
-        assert "rules" in data
+        assert resp.json()["thinking_level"] == ""
+
+    def test_set_thinking_level_medium(self, client):
+        resp = client.post("/api/chat/thinking-level", json={"level": "medium"})
+        assert resp.status_code == 200
+        assert resp.json()["thinking_level"] == "medium"
+
+    def test_set_thinking_level_invalid(self, client):
+        resp = client.post("/api/chat/thinking-level", json={"level": "invalid"})
+        assert resp.status_code == 422
+
+    def test_thinking_level_persists(self, client):
+        client.post("/api/chat/thinking-level", json={"level": "high"})
+        resp = client.get("/api/session")
+        assert resp.status_code == 200
+        assert resp.json()["thinking_level"] == "high"
+
+
+class TestUnloadModel:
+    def test_unload_model_endpoint(self, client):
+        with patch("app.api.models.LMStudioClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.unload_model.return_value = {"status": "unloaded"}
+            mock_cls.return_value = mock_client
+            resp = client.post("/api/models/unload", json={"instance_id": "m1-inst"})
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "unloaded"
+
+    def test_unload_model_failure(self, client):
+        with patch("app.api.models.LMStudioClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.unload_model.return_value = None
+            mock_cls.return_value = mock_client
+            resp = client.post("/api/models/unload", json={"instance_id": "x"})
+            assert resp.status_code == 502
+
+
+class TestSystemResources:
+    def test_system_resources_endpoint(self, client):
+        with patch("app.api.system.get_system_resources") as mock_res:
+            mock_res.return_value = {
+                "cpu_percent": 23.5,
+                "memory_percent": 45.0,
+                "memory_used_gb": 8.0,
+                "memory_total_gb": 16.0,
+                "gpu": None,
+                "battery": None,
+            }
+            resp = client.get("/api/system/resources")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["cpu_percent"] == 23.5
+            assert data["memory_percent"] == 45.0

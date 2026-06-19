@@ -21,6 +21,10 @@ class LoadModelPayload(BaseModel):
     offload_kv_cache_to_gpu: Optional[bool] = None
 
 
+class UnloadModelPayload(BaseModel):
+    instance_id: str
+
+
 @router.get("/api/models")
 async def list_models():
     """List available models from LM Studio (both LLM and embedding)."""
@@ -62,6 +66,20 @@ async def load_model(payload: LoadModelPayload):
         conv.model_instance_id = result.get("instance_id", payload.model)
         conv._save()
 
+    return result
+
+
+@router.post("/api/models/unload")
+async def unload_model(payload: UnloadModelPayload):
+    """Unload a model instance from LM Studio."""
+    client = LMStudioClient()
+    result = await client.unload_model(payload.instance_id)
+    if result is None:
+        raise HTTPException(status_code=502, detail="Failed to unload model. Is LM Studio running?")
+    conv = get_conversation()
+    if conv.model_instance_id == payload.instance_id:
+        conv.model_instance_id = ""
+        conv._save()
     return result
 
 
