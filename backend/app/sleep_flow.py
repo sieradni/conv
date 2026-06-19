@@ -11,8 +11,8 @@ import json
 import logging
 import time
 from typing import Optional
-from app.memory_graph import get_memory_graph, _fmt_time
-from app.lm_client import LMStudioClient
+from app.memory_graph import get_memory_graph
+from app.services.lm_client import LMStudioClient
 
 logger = logging.getLogger("sleep_flow")
 
@@ -52,17 +52,25 @@ async def run_sleep_cycle(start_time: Optional[float] = None, end_time: Optional
 
     # Try LLM optimization
     try:
-        lm = LMStudioClient(timeout=60.0)
-        models = await lm.get_models()
-        model_name = models['data'][0]['id'] if (models and 'data' in models and models['data']) else None
+        lm = LMStudioClient()
+        models = await lm.get_models_v2()
+        if models and "models" in models and models["models"]:
+            model_name = models["models"][0]["key"]
+        else:
+            models_legacy = await lm.get_models_legacy()
+            model_name = models_legacy['data'][0]['id'] if (models_legacy and 'data' in models_legacy and models_legacy['data']) else None
         if model_name:
             messages = [
                 {"role": "system", "content": SLEEP_OPTIMIZER_PROMPT + context},
                 {"role": "user", "content": "Analyze this memory graph and suggest optimizations."},
             ]
-            response = await lm.chat_completion(model=model_name, messages=messages, temperature=0.3)
+            response = await lm.chat_completion_v2(model=model_name, messages=messages, temperature=0.3)
             if response:
-                content = response["choices"][0]["message"]["content"]
+                output = response.get("output", [])
+                content = ""
+                for item in output:
+                    if item.get("type") == "message":
+                        content += item.get("content", "")
                 logger.info(f"Sleep LLM response ({len(content)} chars)")
                 actions = _parse_actions(content)
                 if actions:

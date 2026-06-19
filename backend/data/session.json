@@ -1,0 +1,10 @@
+{
+  "session_id": "63dba7ff",
+  "chat_history": [],
+  "current_goal": "",
+  "approval_mode": "WAIT_FOR_USER",
+  "model_instance_id": "gemma-4-12b-coder-fable5-composer2.5-v1@q2_k",
+  "created_at": 1781833018.6013803,
+  "updated_at": 1781833572.970387,
+  "version": 1
+}

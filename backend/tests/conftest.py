@@ -59,8 +59,13 @@ def memory_graph(memory_graph_path):
 def clean_state():
     from app.memory_graph import set_memory_graph
     set_memory_graph(None)
-    from app.session import registry, manager
-    registry._sessions.clear()
-    manager._global.clear()
-    manager._by_session.clear()
+    from app.core.events import manager as core_manager
+    core_manager._global.clear()
+    core_manager._by_session.clear()
+    from app.core.session import reset_conversation
+    reset_conversation()
+    from app.core.config import TODO_FILE, DIAG_FILE, NOTES_FILE
+    for f in (TODO_FILE, DIAG_FILE, NOTES_FILE):
+        if f.exists():
+            f.unlink()
     yield

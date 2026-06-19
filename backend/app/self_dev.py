@@ -204,13 +204,13 @@ class ShadowSandbox:
         return errors
 
     def cleanup(self):
-        """Remove the shadow directory."""
+        """Remove the shadow directory and reset to IDLE."""
         if self._shadow_dir and self._shadow_dir.exists():
             shutil.rmtree(self._shadow_dir)
-            self._shadow_dir = None
-            self._sandbox = None
-            self._proposed_changes = []
-            self._status = "IDLE"
+        self._shadow_dir = None
+        self._sandbox = None
+        self._proposed_changes = []
+        self._status = "IDLE"
 
 
 # Singleton

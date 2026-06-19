@@ -1,42 +1,53 @@
 import pytest
 import json
-import os
-import tempfile
 from unittest.mock import MagicMock, AsyncMock, patch
-from app.overseer import OverseerAgent
+from app.services.overseer import OverseerAgent
 
 
 @pytest.fixture
 def overseer():
-    return OverseerAgent(api_url="http://test:1234/v1")
+    return OverseerAgent()
 
 
 class TestOverseerInitialization:
     @pytest.mark.asyncio
-    async def test_initialize_success(self, overseer):
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
-            mock_get.return_value = {"data": [{"id": "test-model"}]}
+    async def test_initialize_success_loaded_llm(self, overseer):
+        with patch.object(overseer.lm_client, "get_models_v2", new=AsyncMock()) as mock_get:
+            mock_get.return_value = {
+                "models": [
+                    {"key": "unloaded-model", "type": "embedding"},
+                    {"key": "llama-3", "type": "llm", "loaded_instances": [{"id": "llama-3-instance"}]},
+                ]
+            }
             await overseer.initialize()
-            assert overseer.model_name == "test-model"
+            assert overseer.model_name == "llama-3-instance"
+
+    @pytest.mark.asyncio
+    async def test_initialize_fallback_unloaded_llm(self, overseer):
+        with patch.object(overseer.lm_client, "get_models_v2", new=AsyncMock()) as mock_get:
+            mock_get.return_value = {
+                "models": [
+                    {"key": "llama-3", "type": "llm"},
+                ]
+            }
+            await overseer.initialize()
+            assert overseer.model_name == "llama-3"
+
+    @pytest.mark.asyncio
+    async def test_initialize_legacy_fallback(self, overseer):
+        with patch.object(overseer.lm_client, "get_models_v2", new=AsyncMock()) as mock_get, \
+             patch.object(overseer.lm_client, "get_models_legacy", new=AsyncMock()) as mock_legacy:
+            mock_get.return_value = {}
+            mock_legacy.return_value = {"data": [{"id": "legacy-model"}]}
+            await overseer.initialize()
+            assert overseer.model_name == "legacy-model"
 
     @pytest.mark.asyncio
     async def test_initialize_no_models(self, overseer):
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
-            mock_get.return_value = {"data": []}
-            await overseer.initialize()
-            assert overseer.model_name is None
-
-    @pytest.mark.asyncio
-    async def test_initialize_no_data_key(self, overseer):
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
-            mock_get.return_value = {}
-            await overseer.initialize()
-            assert overseer.model_name is None
-
-    @pytest.mark.asyncio
-    async def test_initialize_request_failure(self, overseer):
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
-            mock_get.return_value = None
+        with patch.object(overseer.lm_client, "get_models_v2", new=AsyncMock()) as mock_get, \
+             patch.object(overseer.lm_client, "get_models_legacy", new=AsyncMock()) as mock_legacy:
+            mock_get.return_value = {"models": []}
+            mock_legacy.return_value = {"data": []}
             await overseer.initialize()
             assert overseer.model_name is None
 
@@ -46,17 +57,14 @@ class TestOverseerReviewAction:
     async def test_review_approved(self, overseer):
         overseer.model_name = "test-model"
         mock_response = {
-            "choices": [{
-                "message": {
-                    "content": json.dumps({
-                        "status": "APPROVED",
-                        "reasoning": "Looks safe",
-                        "feedback": ""
-                    })
-                }
-            }]
+            "output": [{"type": "message", "content": json.dumps({
+                "status": "APPROVED",
+                "reasoning": "Looks safe",
+                "feedback": ""
+            })}],
+            "stats": {"tokens": 10},
         }
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
+        with patch.object(overseer.lm_client, "chat_completion_v2", new=AsyncMock()) as mock_chat:
             mock_chat.return_value = mock_response
             result = await overseer.review_action("read_file", {"path": "test.txt"}, "Read a file")
             assert result["status"] == "APPROVED"
@@ -66,17 +74,13 @@ class TestOverseerReviewAction:
     async def test_review_rejected(self, overseer):
         overseer.model_name = "test-model"
         mock_response = {
-            "choices": [{
-                "message": {
-                    "content": json.dumps({
-                        "status": "REJECTED",
-                        "reasoning": "Security risk",
-                        "feedback": "Don't do that"
-                    })
-                }
-            }]
+            "output": [{"type": "message", "content": json.dumps({
+                "status": "REJECTED",
+                "reasoning": "Security risk",
+                "feedback": "Don't do that"
+            })}],
         }
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
+        with patch.object(overseer.lm_client, "chat_completion_v2", new=AsyncMock()) as mock_chat:
             mock_chat.return_value = mock_response
             result = await overseer.review_action("write_file", {"path": "/etc/passwd"}, "Write to system")
             assert result["status"] == "REJECTED"
@@ -85,13 +89,9 @@ class TestOverseerReviewAction:
     async def test_review_unparseable_response(self, overseer):
         overseer.model_name = "test-model"
         mock_response = {
-            "choices": [{
-                "message": {
-                    "content": "This is not JSON at all"
-                }
-            }]
+            "output": [{"type": "message", "content": "This is not JSON at all"}],
         }
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
+        with patch.object(overseer.lm_client, "chat_completion_v2", new=AsyncMock()) as mock_chat:
             mock_chat.return_value = mock_response
             result = await overseer.review_action("read_file", {}, "")
             assert result["status"] == "REJECTED"
@@ -101,13 +101,9 @@ class TestOverseerReviewAction:
     async def test_review_json_in_code_block(self, overseer):
         overseer.model_name = "test-model"
         mock_response = {
-            "choices": [{
-                "message": {
-                    "content": '```json\n{"status": "APPROVED", "reasoning": "ok", "feedback": ""}\n```'
-                }
-            }]
+            "output": [{"type": "message", "content": '```json\n{"status": "APPROVED", "reasoning": "ok", "feedback": ""}\n```'}],
         }
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
+        with patch.object(overseer.lm_client, "chat_completion_v2", new=AsyncMock()) as mock_chat:
             mock_chat.return_value = mock_response
             result = await overseer.review_action("read_file", {}, "")
             assert result["status"] == "APPROVED"
@@ -115,7 +111,7 @@ class TestOverseerReviewAction:
     @pytest.mark.asyncio
     async def test_review_no_response(self, overseer):
         overseer.model_name = "test-model"
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
+        with patch.object(overseer.lm_client, "chat_completion_v2", new=AsyncMock()) as mock_chat:
             mock_chat.return_value = None
             result = await overseer.review_action("read_file", {}, "")
             assert result["status"] == "REJECTED"
@@ -124,11 +120,13 @@ class TestOverseerReviewAction:
     @pytest.mark.asyncio
     async def test_review_auto_initialize(self, overseer):
         overseer.model_name = None
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
-            mock_get.return_value = {"data": [{"id": "test-model"}]}
-            with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
+        with patch.object(overseer.lm_client, "get_models_v2", new=AsyncMock()) as mock_get:
+            mock_get.return_value = {
+                "models": [{"key": "llama-3", "type": "llm", "loaded_instances": [{"id": "llama-3"}]}]
+            }
+            with patch.object(overseer.lm_client, "chat_completion_v2", new=AsyncMock()) as mock_chat:
                 mock_chat.return_value = {
-                    "choices": [{"message": {"content": json.dumps({"status": "APPROVED", "reasoning": "ok", "feedback": ""})}}]
+                    "output": [{"type": "message", "content": json.dumps({"status": "APPROVED", "reasoning": "ok", "feedback": ""})}]
                 }
                 result = await overseer.review_action("read_file", {}, "")
                 assert result["status"] == "APPROVED"
@@ -136,74 +134,43 @@ class TestOverseerReviewAction:
     @pytest.mark.asyncio
     async def test_review_init_failure(self, overseer):
         overseer.model_name = None
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
+        with patch.object(overseer.lm_client, "get_models_v2", new=AsyncMock()) as mock_get, \
+             patch.object(overseer.lm_client, "get_models_legacy", new=AsyncMock()) as mock_legacy:
             mock_get.return_value = None
+            mock_legacy.return_value = None
             result = await overseer.review_action("read_file", {}, "")
             assert result["status"] == "REJECTED"
             assert "not initialized" in result["reasoning"]
 
 
 class TestOverseerReadSandboxFile:
-    def test_read_within_sandbox(self, overseer):
+    @pytest.mark.asyncio
+    async def test_read_within_sandbox(self, overseer):
+        import tempfile, os
         with tempfile.TemporaryDirectory() as tmp:
             file_path = os.path.join(tmp, "test.txt")
             with open(file_path, "w") as f:
                 f.write("hello")
-            content = overseer._read_sandbox_file_sync(tmp, "test.txt")
+            content = await overseer._read_sandbox_file(tmp, "test.txt")
             assert content == "hello"
 
-    def test_read_traversal_blocked(self, overseer):
+    @pytest.mark.asyncio
+    async def test_read_traversal_blocked(self, overseer):
+        import tempfile, os
         with tempfile.TemporaryDirectory() as tmp:
-            result = overseer._read_sandbox_file_sync(tmp, "../etc/passwd")
+            result = await overseer._read_sandbox_file(tmp, "../etc/passwd")
             assert "blocked" in result
 
-    def test_read_nonexistent_file(self, overseer):
+    @pytest.mark.asyncio
+    async def test_read_nonexistent_file(self, overseer):
+        import tempfile, os
         with tempfile.TemporaryDirectory() as tmp:
-            result = overseer._read_sandbox_file_sync(tmp, "missing.txt")
+            result = await overseer._read_sandbox_file(tmp, "missing.txt")
             assert "not found" in result
 
-    def test_read_empty_path(self, overseer):
+    @pytest.mark.asyncio
+    async def test_read_empty_path(self, overseer):
+        import tempfile, os
         with tempfile.TemporaryDirectory() as tmp:
-            result = overseer._read_sandbox_file_sync(tmp, "")
+            result = await overseer._read_sandbox_file(tmp, "")
             assert "not found" in result or "blocked" in result
-
-
-class TestOverseerAskOverseer:
-    @pytest.mark.asyncio
-    async def test_ask_overseer_success(self, overseer):
-        overseer.model_name = "test-model"
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
-            mock_chat.return_value = {
-                "choices": [{"message": {"content": "Here is my analysis."}}]
-            }
-            result = await overseer.ask_overseer("Is this safe?")
-            assert "Here is my analysis" in result
-
-    @pytest.mark.asyncio
-    async def test_ask_overseer_no_response(self, overseer):
-        overseer.model_name = "test-model"
-        with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
-            mock_chat.return_value = None
-            result = await overseer.ask_overseer("Question?")
-            assert "failed to respond" in result
-
-    @pytest.mark.asyncio
-    async def test_ask_overseer_auto_initialize(self, overseer):
-        overseer.model_name = None
-        with patch.object(overseer.lm_client, "get_models", new=AsyncMock()) as mock_get:
-            mock_get.return_value = {"data": [{"id": "test-model"}]}
-            with patch.object(overseer.lm_client, "chat_completion", new=AsyncMock()) as mock_chat:
-                mock_chat.return_value = {
-                    "choices": [{"message": {"content": "Analysis result"}}]
-                }
-                result = await overseer.ask_overseer("Question?")
-                assert "Analysis" in result
-
-
-# Helper: synchronous wrapper for testing _read_sandbox_file
-def _read_sandbox_file_sync(self, sandbox_dir, path):
-    import asyncio
-    return asyncio.run(self._read_sandbox_file(sandbox_dir, path))
-
-
-OverseerAgent._read_sandbox_file_sync = _read_sandbox_file_sync

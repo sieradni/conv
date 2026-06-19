@@ -1,10 +1,7 @@
 import pytest
 import json
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "app"))
-from main import (
+from app.services.agent_service import (
     extract_tool_call,
     find_tool_call_start,
     find_tool_call_end,

@@ -1,9 +1,13 @@
-"""Overseer Agent - Quality assurance and approval authority for Actor agent decisions"""
+"""Overseer Agent — reviews tool calls before execution."""
 
 import json
 import os
-from typing import Dict, Any, Optional
-from app.lm_client import LMStudioClient
+import logging
+from typing import Optional
+
+from app.services.lm_client import LMStudioClient
+
+logger = logging.getLogger("overseer")
 
 OVERSEER_SYSTEM_PROMPT = """You are an elite, skeptical Software Quality Assurance Engineer and Security Auditor.
 Your job is to review the Actor agent's proposed tool calls before they execute.
@@ -26,22 +30,32 @@ Output a JSON object:
 
 
 class OverseerAgent:
-    def __init__(self, api_url: str = "http://localhost:1234/v1"):
-        self.api_url = api_url
-        self.lm_client = LMStudioClient(base_url=api_url, timeout=120.0)
-        self.model_name = None
+    def __init__(self):
+        self.lm_client = LMStudioClient()
+        self.model_name: Optional[str] = None
 
     async def initialize(self):
-        """Initialize the overseer by fetching available models."""
-        models = await self.lm_client.get_models()
-        if models and 'data' in models and models['data']:
-            self.model_name = models['data'][0]['id']
-            print(f"[Overseer] Initialized with model: {self.model_name}")
-        else:
-            print("[Overseer] Warning: No models available in LM Studio")
+        models = await self.lm_client.get_models_v2()
+        if models and "models" in models and models["models"]:
+            # Find the first loaded LLM
+            for m in models["models"]:
+                if m.get("type") == "llm" and m.get("loaded_instances"):
+                    self.model_name = m["loaded_instances"][0]["id"]
+                    logger.info(f"Overseer using model: {self.model_name}")
+                    return
+            # Fallback: first model
+            for m in models["models"]:
+                if m.get("type") == "llm":
+                    self.model_name = m["key"]
+                    logger.info(f"Overseer using model (not loaded): {self.model_name}")
+                    return
+        # Legacy fallback
+        models_legacy = await self.lm_client.get_models_legacy()
+        if models_legacy and "data" in models_legacy and models_legacy["data"]:
+            self.model_name = models_legacy["data"][0]["id"]
+            logger.info(f"Overseer using legacy model: {self.model_name}")
 
     async def _read_sandbox_file(self, sandbox_dir: str, path: str) -> str:
-        """Read a file from the sandbox directory for review purposes."""
         try:
             full_path = os.path.normpath(os.path.join(sandbox_dir, path))
             if not full_path.startswith(os.path.normpath(sandbox_dir)):
@@ -60,26 +74,16 @@ class OverseerAgent:
         thought: str,
         previous_block: str = "",
         sandbox_dir: str = "",
-    ) -> Dict[str, Any]:
-        """Review a proposed tool action before execution.
-
-        Args:
-            tool_name: Name of the tool being called.
-            tool_args: Arguments for the tool.
-            thought: The agent's reasoning/thought text.
-            previous_block: The last user message + last assistant message for context.
-            sandbox_dir: Path to the sandbox directory (for reading files to verify).
-        """
+    ) -> dict:
         if not self.model_name:
             await self.initialize()
             if not self.model_name:
                 return {
                     "status": "REJECTED",
                     "reasoning": "Overseer not initialized (no models found)",
-                    "feedback": "Ensure LM Studio is running and a model is loaded."
+                    "feedback": "Ensure LM Studio is running and a model is loaded.",
                 }
 
-        # Build files context: if tool reads/writes a file, show relevant files
         file_context = ""
         if sandbox_dir and os.path.isdir(sandbox_dir):
             target_path = ""
@@ -87,7 +91,6 @@ class OverseerAgent:
                 target_path = tool_args.get("path", "")
             elif tool_name == "run_command":
                 cmd = tool_args.get("command", "")
-                # Check if command references specific files
                 for word in cmd.split():
                     if word.endswith((".py", ".js", ".ts", ".json", ".md", ".txt", ".yaml", ".yml")):
                         target_path = word
@@ -106,62 +109,48 @@ ACTOR PROPOSED ACTION:
 {file_context}
 
 Review this proposal. Is it safe, correct, and well-justified given the context?"""
+
         messages = [
             {"role": "system", "content": OVERSEER_SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ]
 
-        response = await self.lm_client.chat_completion(
+        response = await self.lm_client.chat_completion_v2(
             model=self.model_name,
             messages=messages,
-            temperature=0.1
+            temperature=0.1,
         )
 
-        if response and response.get('choices'):
-            content = response['choices'][0]['message']['content']
+        if response:
+            # Extract message content from v2 output format
+            output = response.get("output", [])
+            content = ""
+            for item in output:
+                if item.get("type") == "message":
+                    content += item.get("content", "")
+            if not content:
+                # Legacy fallback
+                content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-            cleaned_content = content.strip()
-            if "```json" in cleaned_content:
-                cleaned_content = cleaned_content.split("```json")[1].split("```")[0]
-            elif "```" in cleaned_content:
-                cleaned_content = cleaned_content.split("```")[1].split("```")[0]
+            cleaned = content.strip()
+            if "```json" in cleaned:
+                cleaned = cleaned.split("```json")[1].split("```")[0]
+            elif "```" in cleaned:
+                cleaned = cleaned.split("```")[1].split("```")[0]
 
             try:
-                result = json.loads(cleaned_content.strip())
+                result = json.loads(cleaned.strip())
                 result["status"] = result.get("status", "REJECTED").upper()
                 return result
             except json.JSONDecodeError:
                 return {
                     "status": "REJECTED",
                     "reasoning": "Overseer returned unparseable response",
-                    "feedback": f"The overseer output was: {content}. Please ensure standard JSON output."
+                    "feedback": f"The overseer output was: {content}. Please ensure standard JSON output.",
                 }
         else:
             return {
                 "status": "REJECTED",
                 "reasoning": "Overseer failed to respond.",
-                "feedback": "Check LM Studio connection."
+                "feedback": "Check LM Studio connection.",
             }
-
-    async def ask_overseer(self, question: str) -> str:
-        """Packages the question and sends it to the Overseer LLM."""
-        if not self.model_name:
-            await self.initialize()
-            if not self.model_name:
-                return "Error: Overseer not initialized."
-
-        messages = [
-            {"role": "system", "content": OVERSEER_SYSTEM_PROMPT},
-            {"role": "user", "content": question}
-        ]
-
-        response = await self.lm_client.chat_completion(
-            model=self.model_name,
-            messages=messages,
-            temperature=0.7
-        )
-
-        if response and response.get('choices'):
-            return response['choices'][0]['message']['content']
-        else:
-            return "Overseer failed to respond."
