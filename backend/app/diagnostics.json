@@ -104,6 +104,48 @@
       "generation_time_s": 1.5,
       "tokens_per_second": 10.0,
       "token_count": 100
+    },
+    {
+      "timestamp": 1781825795.5056381,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781826203.8643334,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781826384.914571,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781826476.3880181,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781827062.0783901,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781827084.3185558,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
+    },
+    {
+      "timestamp": 1781828826.4933364,
+      "generation_time_s": 1.5,
+      "tokens_per_second": 10.0,
+      "token_count": 100
     }
   ]
 }

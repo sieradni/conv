@@ -326,18 +326,18 @@ async function loadMemoryGraph() {
     nodes.forEach(n => {
       const isCurrent = n.id === currentId;
       const marker = isCurrent ? '►' : ' ';
-      const detail = (n.detail||'').trim() ? n.detail : 'No further details';
+      const detail = (n.extraneous_detail||'').trim() ? n.extraneous_detail : 'none';
       const linkedNames = (n.linked_ids||[]).map(lid => {
         const ln = nodeMap[lid];
-        return ln ? `[${lid.slice(0,8)}] ${ln.title}` : `[${lid.slice(0,8)}] (unknown)`;
+        return ln ? `[${lid}] ${ln.content}` : `[${lid}] (unknown)`;
       }).join(', ') || 'none';
       const tags = [];
       if (n.is_root) tags.push('root');
       if (isCurrent) tags.push('CURRENT');
       const tagStr = tags.length ? ` [${tags.join(', ')}]` : '';
-      txt += `${marker} [${n.id.slice(0,8)}] ${n.title}${tagStr}\n`;
+      txt += `${marker} [${n.id}] ${n.content}${tagStr}\n`;
       txt += `  ID: ${n.id}\n`;
-      txt += `  Detail: ${detail}\n`;
+      txt += `  Extraneous detail: ${detail}\n`;
       txt += `  Links: ${linkedNames}\n`;
       txt += `  Access: ${n.access_count} | Created: ${fmtUtc(n.created_at)} | Updated: ${fmtUtc(n.updated_at)}\n\n`;
     });
@@ -1023,7 +1023,7 @@ function addStep(step, diagnostics, streaming) {
         existingEl.remove();
       } else {
         const tEl = existingEl.querySelector('.step-thought');
-        if (tEl) tEl.textContent = escapeHtml(thought ? thought.slice(0,500) : '');
+        if (tEl) tEl.textContent = escapeHtml(thought || '');
         const nEl = existingEl.querySelector('.step-tool-name');
         if (nEl) nEl.textContent = toolName;
         const aEl = existingEl.querySelector('.step-args');
@@ -1057,7 +1057,7 @@ function addStep(step, diagnostics, streaming) {
   // Thinking (always visible)
   html += `<div class="mb-1">
     <div class="text-[9px] font-medium text-slate-600 mb-0.5">thinking</div>
-    <div class="text-[10px] text-slate-400 italic leading-relaxed pl-2 border-l border-white/10 step-thought">${escapeHtml(thought ? thought.slice(0,500) : '')}</div>
+    <div class="text-[10px] text-slate-400 italic leading-relaxed pl-2 border-l border-white/10 step-thought">${escapeHtml(thought || '')}</div>
   </div>`;
 
   // Arguments (always visible if present)
@@ -1233,7 +1233,7 @@ async function sdTest() {
     const r = await fetch('/api/self-dev/test', {method:'POST'}); const d = await r.json();
     if (d.results) {
       let txt = `Status: ${d.results.status}\nTests: ${d.results.tests_run} | +${d.results.passed}/-${d.results.failed}`;
-      if (d.results.errors?.length) txt += `\nErrors: ${d.results.errors.join('\n').slice(0,500)}`;
+      if (d.results.errors?.length) txt += `\nErrors: ${d.results.errors.join('\n')}`;
       $('sd-output').textContent = txt;
     } else { $('sd-output').textContent = JSON.stringify(d); }
   } catch(e) { $('sd-output').textContent = `Error: ${e.message}`; }
@@ -1460,7 +1460,7 @@ async function checkLmStatus() {
     const r = await fetch('/api/lm/status'); const d = await r.json();
     const badge = $('lm-badge');
     if (d.status === 'connected') {
-      badge.textContent = `LM ${d.model.slice(0, 20)}`;
+      badge.textContent = `LM ${d.model}`;
       badge.className = 'badge bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
     } else {
       badge.textContent = 'LM ○';

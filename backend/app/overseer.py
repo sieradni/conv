@@ -94,7 +94,7 @@ class OverseerAgent:
                         break
             if target_path:
                 content = await self._read_sandbox_file(sandbox_dir, target_path)
-                file_context = f"\nFile '{target_path}' contents:\n{content[:2000]}"
+                file_context = f"\nFile '{target_path}' contents:\n{content}"
 
         prompt = f"""CONVERSATION CONTEXT (previous turn):
 {previous_block or "None available"}
@@ -134,7 +134,7 @@ Review this proposal. Is it safe, correct, and well-justified given the context?
                 return {
                     "status": "REJECTED",
                     "reasoning": "Overseer returned unparseable response",
-                    "feedback": f"The overseer output was: {content[:500]}. Please ensure standard JSON output."
+                    "feedback": f"The overseer output was: {content}. Please ensure standard JSON output."
                 }
         else:
             return {

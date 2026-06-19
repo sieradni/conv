@@ -954,7 +954,7 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
                 if len(messages) >= 2:
                     for m in messages[-2:]:
                         role = m.get("role", "unknown")
-                        c = m.get("content", "")[:1000]
+                        c = m.get("content", "")
                         previous_block += f"[{role}]: {c}\n"
 
                 # Include current todo state + goal for goal/todo changes
@@ -972,7 +972,7 @@ async def stream_chat_response(session_id: str, message: str, sleep_mode: bool =
                 await manager.broadcast({"type": "overseer_review_start", "session_id": session_id})
                 review = await overseer.review_action(
                     tool_name=tool_name, tool_args=tool_args,
-                    thought=content_buffer[:500], previous_block=previous_block,
+                    thought=content_buffer, previous_block=previous_block,
                     sandbox_dir=str(_sandbox_root()),
                 )
                 review_status = review.get("status", "REJECTED").upper()

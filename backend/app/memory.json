@@ -1,19 +1,19 @@
 {
   "nodes": [
     {
-      "id": "e0b4ac0617d1",
-      "title": "User Information",
-      "detail": "User name: Sieradni",
+      "id": "e0b4ac06",
+      "content": "User Information",
+      "extraneous_detail": "User name: Sieradni",
       "linked_ids": [],
       "is_root": true,
-      "access_count": 0,
+      "access_count": 1,
       "created_at": 1781686020.5129101,
-      "updated_at": 1781740476.9197931
+      "updated_at": 1781714423.9197931
     },
     {
-      "id": "cde9f0c99aca",
-      "title": "Clarification Rule",
-      "detail": "If the user's intent is unclear or ambiguous, I must always ask for clarification before proceeding with any action.",
+      "id": "cde9f0c9",
+      "content": "Clarification Rule",
+      "extraneous_detail": "If the user's intent is unclear or ambiguous, I must always ask for clarification before proceeding with any action.",
       "linked_ids": [],
       "is_root": false,
       "access_count": 0,
@@ -21,11 +21,11 @@
       "updated_at": 1781686501.106385
     },
     {
-      "id": "a09347b74df2",
-      "title": "Memory Architecture & Communication Rules",
-      "detail": "1. Ambiguity Handling: If a user instruction is unclear or ambiguous, always ask for clarification before proceeding. Do not assume intent.\n2. Title Priority: Important information must be placed in the title.\n3. Detail Visibility: Ensure that memory details are accessible/displayed to the user when relevant (as per user request).\n4. Memory Management: Consolidate overlapping information and maintain a clean, linked graph structure.",
+      "id": "a09347b7",
+      "content": "Memory Architecture & Communication Rules",
+      "extraneous_detail": "1. Ambiguity Handling: If a user instruction is unclear or ambiguous, always ask for clarification before proceeding. Do not assume intent.\n2. Content Priority: Important information must be placed in the content.\n3. Detail Visibility: Ensure that memory details are accessible/displayed to the user when relevant (as per user request).\n4. Memory Management: Consolidate overlapping information and maintain a clean, linked graph structure.",
       "linked_ids": [
-        "cde9f0c99aca"
+        "cde9f0c9"
       ],
       "is_root": true,
       "access_count": 0,
@@ -33,9 +33,9 @@
       "updated_at": 1781691397.4624178
     },
     {
-      "id": "8940e07d02f5",
-      "title": "User Notes Policy",
-      "detail": "Do not rely on `user_notes` for guidance or instructions unless specifically requested by the user. User notes are primarily for the user. If information is missing or a persistent rule is needed, create a memory node instead of searching user notes.",
+      "id": "8940e07d",
+      "content": "User Notes Policy",
+      "extraneous_detail": "Do not rely on `user_notes` for guidance or instructions unless specifically requested by the user. User notes are primarily for the user. If information is missing or a persistent rule is needed, create a memory node instead of searching user notes.",
       "linked_ids": [],
       "is_root": false,
       "access_count": 0,
@@ -43,6 +43,6 @@
       "updated_at": 1781740797.490805
     }
   ],
-  "current_node_id": "a09347b74df2",
-  "format": "hswm_v2"
+  "current_node_id": "a09347b7",
+  "format": "hswm_v3"
 }

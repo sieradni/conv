@@ -137,7 +137,7 @@ class ShadowSandbox:
             )
 
             output = result.stdout + "\n" + result.stderr
-            results["output"] = output[:5000]
+            results["output"] = output
 
             if result.returncode != 0:
                 results["status"] = "FAILED"
@@ -201,7 +201,7 @@ class ShadowSandbox:
         for line in output.split("\n"):
             if "FAILED" in line or "ERROR" in line:
                 errors.append(line.strip())
-        return errors[:20]
+        return errors
 
     def cleanup(self):
         """Remove the shadow directory."""

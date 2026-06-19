@@ -355,7 +355,7 @@ New Rules Applied:
             raise Exception(error_msg)
     
     def ask_overseer(self, question: str) -> str:
-        return f"[Asking Overseer: {question[:50]}...]"
+        return f"[Asking Overseer: {question}]"
 
     # ── Memory Tools ────────────────────────────────────────────
 
@@ -368,7 +368,7 @@ New Rules Applied:
         if nid is None:
             return "✓ Current node cleared."
         if node:
-            return f"✓ Current node set to [{node.id[:8]}] {node.content}"
+            return f"✓ Current node set to [{node.id}] {node.content}"
         return f"Node '{node_id}' not found."
 
     def read_detail(self, node_id: str, sleep_mode: bool = False) -> str:
@@ -392,7 +392,7 @@ New Rules Applied:
             content=content, extraneous_detail=extraneous_detail,
             linked_ids=lids, is_root=is_root,
         )
-        return f"✓ Created memory [{node.id[:8]}] '{content}'"
+        return f"✓ Created memory [{node.id}] '{content}'"
 
     def update_memory(
         self, node_id: str,
@@ -411,7 +411,7 @@ New Rules Applied:
             kwargs["linked_ids"] = [x.strip() for x in linked_ids.split(",") if x.strip()]
         node = graph.update_memory(node_id, **kwargs)
         if node:
-            return f"✓ Updated memory [{node.id[:8]}] {node.content}"
+            return f"✓ Updated memory [{node.id}] {node.content}"
         return f"Node '{node_id}' not found."
 
     # ── Self-Development Tools ────────────────────────────────────
@@ -430,7 +430,7 @@ New Rules Applied:
         sandbox = get_shadow_sandbox()
         results = sandbox.run_tests()
         status = results.get("status", "UNKNOWN")
-        output = results.get("output", "")[:1000]
+        output = results.get("output", "")
         return f"Test status: {status}\n{output}"
 
     def deploy_change(self) -> str:

@@ -124,7 +124,7 @@ class SessionRegistry:
         self._sessions: Dict[str, Session] = {}
 
     def create(self) -> Session:
-        session_id = uuid.uuid4().hex[:12]
+        session_id = uuid.uuid4().hex[:8]
         session = Session(session_id)
         self._sessions[session_id] = session
         logger.info(f"Session created: {session_id}")

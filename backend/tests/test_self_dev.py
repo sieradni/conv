@@ -189,10 +189,10 @@ class TestShadowSandboxParseErrors:
         assert "ERROR test_b" in errors
         assert "PASSED test_c" not in errors
 
-    def test_parse_test_errors_limit(self, shadow):
+    def test_parse_test_errors_all(self, shadow):
         output = "\n".join([f"FAILED test_{i}" for i in range(50)])
         errors = shadow._parse_test_errors(output)
-        assert len(errors) <= 20
+        assert len(errors) == 50
 
 
 class TestShadowSandboxSingleton:

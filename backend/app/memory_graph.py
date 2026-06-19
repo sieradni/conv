@@ -57,8 +57,8 @@ class MemoryGraph:
                 self._save()
                 return
             for node_data in data.get("nodes", []):
-                node_data = self._migrate_node(node_data)
                 try:
+                    node_data.setdefault("extraneous_detail", "")
                     node = MemoryNode(**node_data)
                     self._nodes[node.id] = node
                 except TypeError as e:
@@ -67,39 +67,6 @@ class MemoryGraph:
             logger.info(f"Loaded {len(self._nodes)} memory nodes")
         else:
             logger.info("Initialized empty memory graph")
-
-    @staticmethod
-    def _migrate_node(node_data: dict) -> dict:
-        """Migrate old-format nodes (v1) to new format (v2)."""
-        migrated = dict(node_data)
-        # v1 → v2: parent_id/child_ids → linked_ids, summary → title, has_deeper_detail removed
-        if "parent_id" in migrated or "child_ids" in migrated:
-            lids = set(migrated.get("linked_ids", []))
-            if migrated.get("parent_id"):
-                lids.add(migrated["parent_id"])
-            lids.update(migrated.get("child_ids", []))
-            migrated["linked_ids"] = sorted(lids)
-            was_root = migrated.get("parent_id") is None
-            migrated.pop("parent_id", None)
-            migrated.pop("child_ids", None)
-            migrated.pop("has_deeper_detail", None)
-            if "is_root" not in migrated:
-                migrated["is_root"] = was_root
-        if "summary" in migrated and migrated["summary"]:
-            migrated["title"] = migrated["title"] or migrated["summary"]
-            migrated.pop("summary", None)
-        # v2 → v3: title → content, detail → extraneous_detail
-        if "title" in migrated:
-            migrated.setdefault("content", migrated["title"] or "")
-            migrated.pop("title", None)
-        if "detail" in migrated:
-            migrated.setdefault("extraneous_detail", migrated["detail"] or "")
-            migrated.pop("detail", None)
-        # Ensure defaults for new fields
-        migrated.setdefault("linked_ids", [])
-        migrated.setdefault("is_root", False)
-        migrated.setdefault("extraneous_detail", migrated.get("extraneous_detail") or "")
-        return migrated
 
     def _save(self):
         data = {
@@ -149,7 +116,7 @@ class MemoryGraph:
         linked_ids: Optional[List[str]] = None,
         is_root: bool = False,
     ) -> MemoryNode:
-        node_id = uuid.uuid4().hex[:12]
+        node_id = uuid.uuid4().hex[:8]
         node = MemoryNode(
             id=node_id,
             content=content,
@@ -253,10 +220,14 @@ class MemoryGraph:
 
     # ── Sleep context ─────────────────────────────────────────────
 
+    @staticmethod
+    def _indent(text: str, prefix: str = "  ") -> str:
+        return text.replace("\n", "\n" + prefix)
+
     def generate_sleep_context(self, start_time: float, end_time: float) -> str:
-        """Show all nodes in the time range flatly, grouped with linked neighbors."""
+        """Show all nodes in the time range, organized with newline breaks."""
         lo = int(start_time)
-        hi = int(end_time) + 1  # ceil so nodes at end_time are included
+        hi = int(end_time) + 1
 
         in_range = [
             self._nodes[nid] for nid, n in self._nodes.items()
@@ -266,23 +237,19 @@ class MemoryGraph:
             return "[no memories in range]"
 
         in_range_set = {n.id for n in in_range}
-        result: List[str] = []
+        parts: List[str] = []
 
         for node in sorted(in_range, key=lambda n: n.created_at):
-            detail = node.extraneous_detail.strip() if node.extraneous_detail else "No extraneous detail"
             tags = []
             if node.is_root:
                 tags.append("root")
-            tag_str = (" [" + ", ".join(tags) + "]") if tags else ""
+            tag_str = f" [{', '.join(tags)}]" if tags else ""
 
-            result.append(
-                f"[{node.id}] {node.content}{tag_str} | "
-                f"{detail[:200]} | "
-                f"links: {len(node.linked_ids)} | "
-                f"access: {node.access_count} | "
-                f"created: {_fmt_time(node.created_at)} | "
-                f"updated: {_fmt_time(node.updated_at)}"
-            )
+            lines = [f"[{node.id}] {node.content}{tag_str}"]
+
+            detail = node.extraneous_detail.strip() if node.extraneous_detail else ""
+            if detail:
+                lines.append(f"  detail: {self._indent(detail, '          ')}")
 
             if node.linked_ids:
                 link_names = []
@@ -293,11 +260,17 @@ class MemoryGraph:
                         if lid not in in_range_set:
                             label += " (outside range)"
                     else:
-                        label = f"[{lid[:8]}] (deleted)"
+                        label = f"[{lid}] (deleted)"
                     link_names.append(label)
-                result.append(f"  links to: {', '.join(link_names)}")
+                lines.append(f"  links: {len(node.linked_ids)} → {', '.join(link_names)}")
+            else:
+                lines.append("  links: none")
 
-        return "\n".join(result)
+            lines.append(f"  created: {_fmt_time(node.created_at)}")
+
+            parts.append("\n".join(lines))
+
+        return "\n\n".join(parts)
 
     # ── Maintenance ───────────────────────────────────────────────
 

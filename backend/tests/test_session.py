@@ -39,7 +39,7 @@ class TestSessionRegistry:
         registry = SessionRegistry()
         session = registry.create()
         assert session.session_id is not None
-        assert len(session.session_id) == 12
+        assert len(session.session_id) == 8
 
     def test_get_existing_session(self):
         registry = SessionRegistry()
@@ -61,13 +61,13 @@ class TestSessionRegistry:
         registry = SessionRegistry()
         result = registry.get_or_create("new-id")
         assert result.session_id is not None
-        assert len(result.session_id) == 12
+        assert len(result.session_id) == 8
 
     def test_get_or_create_none(self):
         registry = SessionRegistry()
         result = registry.get_or_create(None)
         assert result.session_id is not None
-        assert len(result.session_id) == 12
+        assert len(result.session_id) == 8
 
     def test_delete_session(self):
         registry = SessionRegistry()

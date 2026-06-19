@@ -66,7 +66,7 @@ class TestSessions:
         assert resp.status_code == 200
         data = resp.json()
         assert data["created"] is True
-        assert len(data["session_id"]) == 12
+        assert len(data["session_id"]) == 8
 
     def test_create_session_with_approval_mode(self, client):
         resp = client.post("/api/session/create", json={"approval_mode": "AUTO_APPROVE"})

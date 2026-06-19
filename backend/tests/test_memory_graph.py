@@ -1,7 +1,6 @@
-import json
 import time
 import pytest
-from app.memory_graph import MemoryGraph, MemoryNode, _fmt_time
+from app.memory_graph import MemoryGraph
 
 
 class TestMemoryGraphCRUD:
@@ -209,37 +208,10 @@ class TestMemoryGraphSleepContext:
         a = memory_graph.create_memory("A")
         b = memory_graph.create_memory("B", linked_ids=[a.id])
         ctx = memory_graph.generate_sleep_context(0, time.time() + 1)
-        assert "outside range" in ctx or "links to" in ctx
+        assert "outside range" in ctx or "links:" in ctx
 
 
-class TestMemoryGraphMigration:
-    def test_v1_to_v2_parent_id(self, memory_graph_path):
-        v1_data = {
-            "nodes": [
-                {"id": "abc", "title": "Old Node", "parent_id": None, "child_ids": ["def"], "summary": "Old Node", "detail": "x"}
-            ],
-            "current_node_id": "abc"
-        }
-        memory_graph_path.write_text(json.dumps(v1_data))
-        g = MemoryGraph(str(memory_graph_path))
-        node = g._nodes["abc"]
-        assert node.is_root
-        assert "def" in node.linked_ids
-        assert node.content == "Old Node"
-
-    def test_v1_to_v2_with_parent(self, memory_graph_path):
-        v1_data = {
-            "nodes": [
-                {"id": "abc", "title": "Child", "parent_id": "parent1", "child_ids": [], "summary": "content", "detail": "x"}
-            ],
-            "current_node_id": None
-        }
-        memory_graph_path.write_text(json.dumps(v1_data))
-        g = MemoryGraph(str(memory_graph_path))
-        node = g._nodes["abc"]
-        assert "parent1" in node.linked_ids
-        assert not node.is_root
-
+class TestMemoryGraphCorrupt:
     def test_corrupt_json_starts_fresh(self, memory_graph_path):
         memory_graph_path.write_text("not valid json")
         g = MemoryGraph(str(memory_graph_path))
