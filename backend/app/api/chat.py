@@ -33,6 +33,10 @@ async def chat(payload: ChatPayload, background_tasks: BackgroundTasks):
     conv = get_conversation()
     session_id = conv.session_id
 
+    # Save user message to history (skip __CONTINUE__ — it's not a real message)
+    if payload.message and payload.message != "__CONTINUE__":
+        conv.add_message("user", payload.message)
+
     # Cancel any existing task
     tasks = get_active_chat_tasks()
     existing = tasks.get(session_id)
@@ -191,3 +195,19 @@ async def sleep_wake():
         })
 
     return {"status": "sleep_ended"}
+
+
+# ── Session truncate (for branching) ────────────────────────────────
+
+
+class TruncatePayload(BaseModel):
+    keep: int
+
+
+@router.post("/api/session/truncate")
+async def truncate_session(payload: TruncatePayload):
+    """Truncate conversation history to N messages (for branch feature)."""
+    conv = get_conversation()
+    conv.chat_history = conv.chat_history[:payload.keep]
+    conv._save()
+    return {"status": "ok"}

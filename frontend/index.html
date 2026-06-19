@@ -200,14 +200,12 @@
     <div class="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 shrink-0 self-start overflow-x-auto">
       <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-dbgview="api-log">api log</button>
       <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="context">context</button>
-      <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="tokens">tokens</button>
       <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="tools">tool flow</button>
       <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="model">model info</button>
       <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="events">raw events</button>
     </div>
     <div id="dbgview-api-log" class="flex-1 scroll glass rounded-xl p-3 text-[9px] font-mono"></div>
     <div id="dbgview-context" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
-    <div id="dbgview-tokens" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
     <div id="dbgview-tools" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
     <div id="dbgview-model" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
     <div id="dbgview-events" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
@@ -285,7 +283,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { submitApproval(false); }
     return;
   }
-  if (e.key === 'Enter' && e.ctrlKey && document.activeElement === $('msg-input')) {
+  if (e.key === 'Enter' && e.ctrlKey) {
     e.preventDefault(); $('respond-btn').click(); return;
   }
   if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) {
@@ -335,9 +333,8 @@ $('respond-btn').onclick = async () => {
     return;
   }
 
-  showGenerating('responding...');
   const msgToSend = text || '__CONTINUE__';
-  addMessage(`you: ${text || '(continue)'}`, 'indigo-400');
+  if (text) addMessage(`you: ${text}`, 'indigo-400');
   try {
     const r = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -398,6 +395,13 @@ $('wake-btn').onclick = () => {
 $('fresh-btn').onclick = async () => {
   try {
     await fetch('/api/session', { method:'DELETE' });
+    chatResponseId = null;
+    chatResponseBuffer = '';
+    thinkingResponseId = null;
+    genStartTime = 0;
+    msgCounter = 0;
+    skipNextTaskMsg = false;
+    if (socket) { socket.onclose = null; socket.close(); socket = null; }
     $('conversation').innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>`;
     $('todo-panel').classList.add('hidden');
     $('todo-items').innerHTML = '';
@@ -413,6 +417,7 @@ $('fresh-btn').onclick = async () => {
     $('wake-btn').classList.add('hidden');
     historyLoaded = false;
     await initSession();
+    connectWS();
     showToast('new session started');
   } catch(_) {}
 };
@@ -429,9 +434,32 @@ $('sd-test-btn').onclick = sdTest;
 $('sd-deploy-btn').onclick = sdDeploy;
 $('sd-status-btn').onclick = sdStatus;
 $('settings-new-session').onclick = async () => {
-  await fetch('/api/session', { method:'DELETE' });
-  await initSession();
-  showToast('new session created');
+  try {
+    await fetch('/api/session', { method:'DELETE' });
+    chatResponseId = null;
+    chatResponseBuffer = '';
+    thinkingResponseId = null;
+    genStartTime = 0;
+    msgCounter = 0;
+    skipNextTaskMsg = false;
+    if (socket) { socket.onclose = null; socket.close(); socket = null; }
+    $('conversation').innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>`;
+    $('todo-panel').classList.add('hidden');
+    $('todo-items').innerHTML = '';
+    currentGoal = '';
+    isRunning = false;
+    sleepMode = false;
+    hideGenerating();
+    hideApproval();
+    $('stop-btn').disabled = true;
+    $('pause-btn').disabled = true;
+    $('pause-btn').textContent = 'pause';
+    $('wake-btn').classList.add('hidden');
+    historyLoaded = false;
+    await initSession();
+    connectWS();
+    showToast('new session started');
+  } catch(_) {}
 };
 
 /* ── Nav tabs ─────────────────────────────────────────────────── */

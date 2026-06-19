@@ -26,6 +26,8 @@ class EventRelay:
         self.session_id = session_id
         self.t0: float = 0.0
         self.token_count: int = 0
+        self.reasoning_token_count: int = 0
+        self.reasoning_t0: float = 0.0
 
     async def handle(self, event: LMStudioEvent):
         """Route an LM Studio event to the correct WS broadcast."""
@@ -81,12 +83,15 @@ class EventRelay:
             })
 
         elif isinstance(event, ReasoningStart):
+            self.reasoning_token_count = 0
+            self.reasoning_t0 = time.time()
             await manager.broadcast({
                 "type": "reasoning_start",
                 "session_id": self.session_id,
             })
 
         elif isinstance(event, ReasoningDelta):
+            self.reasoning_token_count += 1
             await manager.broadcast({
                 "type": "chat_reasoning_token",
                 "session_id": self.session_id,
@@ -94,9 +99,14 @@ class EventRelay:
             })
 
         elif isinstance(event, ReasoningEnd):
+            reasoning_elapsed = time.time() - self.reasoning_t0 if self.reasoning_t0 else 0
             await manager.broadcast({
-                "type": "reasoning_end",
+                "type": "reasoning_done",
                 "session_id": self.session_id,
+                "diagnostics": {
+                    "reasoning_output_tokens": self.reasoning_token_count,
+                    "generation_time_s": round(reasoning_elapsed, 2),
+                },
             })
 
         elif isinstance(event, ToolCallStart):
@@ -177,10 +187,10 @@ class EventRelay:
                 "diagnostics": {
                     "generation_time_s": round(event.stats.get("generation_time_s", time.time() - self.t0), 2),
                     "tokens_per_second": round(event.stats.get("tokens_per_second", 0), 1),
-                    "token_count": event.stats.get("total_output_tokens", self.token_count),
+                    "total_output_tokens": event.stats.get("total_output_tokens", self.token_count),
                     "input_tokens": event.stats.get("input_tokens", 0),
-                    "reasoning_tokens": event.stats.get("reasoning_output_tokens", 0),
-                    "time_to_first_token": event.stats.get("time_to_first_token_seconds", 0),
+                    "reasoning_output_tokens": event.stats.get("reasoning_output_tokens", 0),
+                    "time_to_first_token_seconds": event.stats.get("time_to_first_token_seconds", 0),
                 },
             })
 

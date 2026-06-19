@@ -18,7 +18,11 @@ function connectWS() {
   };
   socket.onerror = () => setConnection(false);
   socket.onmessage = e => {
-    try { handleMessage(JSON.parse(e.data)); } catch(_) {}
+    try {
+      const evt = JSON.parse(e.data);
+      logRawEvent(evt);
+      handleMessage(evt);
+    } catch(_) {}
   };
 }
 

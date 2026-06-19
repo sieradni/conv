@@ -89,12 +89,12 @@ function scrollChat() {
 function formatDiag(diag) {
   if (!diag) return '';
   const parts = [];
-  if (diag.generation_time_s != null) parts.push(`${diag.generation_time_s.toFixed(2)}s`);
-  if (diag.tokens_per_second != null) parts.push(`${diag.tokens_per_second.toFixed(1)} t/s`);
-  if (diag.token_count != null) parts.push(`${diag.token_count} tok`);
   if (diag.input_tokens != null) parts.push(`in:${diag.input_tokens}`);
-  if (diag.reasoning_tokens != null) parts.push(`think:${diag.reasoning_tokens}`);
-  if (diag.time_to_first_token != null) parts.push(`TTFT:${diag.time_to_first_token.toFixed(1)}s`);
+  if (diag.total_output_tokens != null) parts.push(`out:${diag.total_output_tokens}`);
+  if (diag.reasoning_output_tokens != null) parts.push(`think:${diag.reasoning_output_tokens}`);
+  if (diag.tokens_per_second != null) parts.push(`${diag.tokens_per_second.toFixed(1)} t/s`);
+  if (diag.time_to_first_token_seconds != null) parts.push(`TTFT:${diag.time_to_first_token_seconds.toFixed(1)}s`);
+  if (diag.generation_time_s != null) parts.push(`${diag.generation_time_s.toFixed(2)}s`);
   return parts.join(' | ');
 }
 
@@ -103,3 +103,25 @@ function formatDiag(diag) {
 function msgId(prefix) {
   return (prefix || 'msg') + '-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
 }
+
+/* ── Fetch wrapper for API logging ──────────────────────────────── */
+
+const _origFetch = window.fetch;
+window.fetch = function(url, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  const body = opts.body || null;
+  const start = performance.now();
+
+  return _origFetch.call(window, url, opts).then(resp => {
+    const duration = (performance.now() - start) / 1000;
+    const cloned = resp.clone();
+    cloned.text().then(bodyText => {
+      logApiCall(method, (typeof url === 'string' ? url : url.url), resp.status, duration, body, bodyText);
+    }).catch(() => {});
+    return resp;
+  }).catch(err => {
+    const duration = (performance.now() - start) / 1000;
+    logApiCall(method, (typeof url === 'string' ? url : url.url), 0, duration, body, err.message);
+    throw err;
+  });
+};

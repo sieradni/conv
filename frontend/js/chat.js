@@ -197,27 +197,115 @@ function editMsg(id) {
   input.addEventListener('blur', save);
 }
 
-function deleteMsg(id) {
+async function deleteMsg(id) {
   const el = $(id); if (!el) return;
+
+  // Also remove from backend history
+  const allMsgs = conversation.querySelectorAll('[data-msg]');
+  let idx = 0;
+  for (const m of allMsgs) {
+    if (m.id === id) break;
+    idx++;
+  }
+  fetch(`/api/session/message?index=${idx}`, { method:'DELETE' }).catch(()=>{});
+
+  // Remove preceding thinking block if present
+  const prev = el.previousElementSibling;
+  if (prev && prev.id && prev.id.startsWith('thinking-')) {
+    prev.remove();
+    if (thinkingResponseId === prev.id) thinkingResponseId = null;
+  }
   el.innerHTML = `<div class="h-px bg-white/5 my-1"></div>
 <div><span class="text-[11px] text-slate-600 italic">deleted</span></div>`;
 }
 
-function rerunMsg(id) {
+async function rerunMsg(id) {
   const el = $(id); if (!el) return;
   const msg = JSON.parse(el.dataset.msg || '{}');
-  let text = msg.text;
-  if (text.startsWith('respond: ') || text.startsWith('asked: ') || text.startsWith('talk: ') || text.startsWith('resumed: ')) {
-    text = text.replace(/^(respond|asked|talk|resumed): "/, '').replace(/"$/, '');
-    const input = $('msg-input');
-    if (input) { input.value = text; }
-    const btn = $('respond-btn');
-    if (btn) btn.click();
+  let text = msg.text || '';
+
+  // Find the "you:" element to branch from (target if it's a user msg, else preceding)
+  let youEl;
+  if (text.startsWith('you: ')) {
+    youEl = el;
+  } else {
+    let prev = el.previousElementSibling;
+    while (prev) {
+      const prevMsg = JSON.parse(prev.dataset.msg || '{}');
+      if (prevMsg.text && prevMsg.text.startsWith('you: ')) {
+        youEl = prev;
+        break;
+      }
+      prev = prev.previousElementSibling;
+    }
+    if (!youEl) { showToast('no user message found'); return; }
   }
+
+  const userText = JSON.parse(youEl.dataset.msg || '{}').text.slice(5);
+
+  // Count [data-msg] elements BEFORE the "you:" element
+  const allMsgs = conversation.querySelectorAll('[data-msg]');
+  let keep = 0;
+  for (const m of allMsgs) {
+    if (m.id === youEl.id) break;
+    keep++;
+  }
+
+  // Remove the "you:" element and everything after it
+  let toRemove = [];
+  let cur = youEl;
+  while (cur) {
+    toRemove.push(cur);
+    cur = cur.nextElementSibling;
+  }
+  for (const r of toRemove) r.remove();
+
+  // Truncate backend history BEFORE the user message
+  try {
+    await fetch('/api/session/truncate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({keep}),
+    });
+  } catch(_) { return; }
+
+  // Add the user message back to DOM (same as respond-btn.onclick)
+  addMessage(`you: ${userText}`, 'indigo-400');
+
+  // Trigger agent with original user message (will be saved to history by backend)
+  fetch('/api/chat', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message: userText}),
+  }).catch(()=>{});
 }
 
-function branchHere(id) {
-  showToast('branch not available in chat mode');
+async function branchHere(id) {
+  const el = $(id); if (!el) return;
+
+  // Count [data-msg] up to and including this one
+  const allMsgs = conversation.querySelectorAll('[data-msg]');
+  let keep = 0;
+  for (const m of allMsgs) {
+    keep++;
+    if (m.id === id) break;
+  }
+
+  // Remove DOM after this message
+  let next = el.nextElementSibling;
+  while (next) {
+    const cur = next;
+    next = next.nextElementSibling;
+    cur.remove();
+  }
+
+  // Truncate backend history
+  try {
+    await fetch('/api/session/truncate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({keep}),
+    });
+  } catch(_) {}
+
+  showToast('branched');
 }
 
 /* ── Tool Cards ────────────────────────────────────────────────── */
@@ -426,6 +514,7 @@ function handleMessage(msg) {
   switch (msg.type) {
 
     case 'chat_start':
+      if (chatResponseId) break;
       showGenerating('responding...');
       thinkingResponseId = null;
       chatResponseBuffer = '';
@@ -466,6 +555,21 @@ function handleMessage(msg) {
       break;
 
     case 'reasoning_end':
+    case 'reasoning_done':
+      if (thinkingResponseId && msg.diagnostics) {
+        const thinkingEl = $(thinkingResponseId);
+        if (thinkingEl) {
+          const existingDiag = thinkingEl.querySelector('.thinking-diag');
+          if (existingDiag) {
+            existingDiag.textContent = formatDiag(msg.diagnostics);
+          } else {
+            const diagRow = document.createElement('div');
+            diagRow.className = 'thinking-diag flex gap-2 mt-1 pt-1 border-t border-amber-500/10 text-[8px] font-mono text-slate-600';
+            diagRow.textContent = formatDiag(msg.diagnostics);
+            thinkingEl.appendChild(diagRow);
+          }
+        }
+      }
       break;
 
     case 'chat_token':
@@ -568,11 +672,28 @@ function handleMessage(msg) {
           // Add diagnostics to completed message
           if (msg.diagnostics) {
             const existingDiag = el.querySelector('.response-diag');
-            if (!existingDiag) {
+            if (existingDiag) {
+              existingDiag.textContent = formatDiag(msg.diagnostics);
+            } else {
               const diagRow = document.createElement('div');
               diagRow.className = 'response-diag flex gap-2 mt-1 pt-1 border-t border-white/5 text-[8px] font-mono text-slate-600';
               diagRow.textContent = formatDiag(msg.diagnostics);
               el.appendChild(diagRow);
+            }
+          }
+          // Also update thinking diagnostics with full stats
+          if (msg.diagnostics && thinkingResponseId) {
+            const thinkingEl = $(thinkingResponseId);
+            if (thinkingEl) {
+              let diagRow = thinkingEl.querySelector('.thinking-diag');
+              if (diagRow) {
+                diagRow.textContent = formatDiag(msg.diagnostics);
+              } else {
+                diagRow = document.createElement('div');
+                diagRow.className = 'thinking-diag flex gap-2 mt-1 pt-1 border-t border-amber-500/10 text-[8px] font-mono text-slate-600';
+                diagRow.textContent = formatDiag(msg.diagnostics);
+                thinkingEl.appendChild(diagRow);
+              }
             }
           }
           // Add action buttons to completed streaming message

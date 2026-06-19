@@ -342,13 +342,11 @@ async def build_context_messages(
         history = conv.get_context_messages()
         messages.extend(history)
 
-    # Add user message
+    # Add user message (avoid duplicate if already the last entry in history)
     if user_message == "__CONTINUE__":
-        if history and history[-1]["role"] == "user":
-            pass  # Let agent respond to existing user message
-        else:
+        if not history or history[-1]["role"] == "assistant":
             messages.append({"role": "user", "content": "Please continue."})
-    else:
+    elif not (history and history[-1]["role"] == "user" and history[-1].get("content") == user_message):
         messages.append({"role": "user", "content": user_message})
 
     return messages, memory_context
@@ -376,6 +374,7 @@ async def run_agent_loop(
         await manager.broadcast({
             "type": "chat_done", "session_id": session_id,
             "response": "[Error: No model available. Load a model first.]",
+            "diagnostics": {},
         })
         return
 
@@ -392,6 +391,7 @@ async def run_agent_loop(
             await manager.broadcast({
                 "type": "chat_done", "session_id": session_id,
                 "response": "[Stopped]",
+                "diagnostics": {},
             })
             return
 
@@ -433,31 +433,46 @@ async def run_agent_loop(
                     output_items = event.output
                     # Update conversation stats
                     stats = event.stats
+                    call_diagnostics = {
+                        "generation_time_s": stats.get("generation_time_s", 0),
+                        "tokens_per_second": stats.get("tokens_per_second", 0),
+                        "total_output_tokens": stats.get("total_output_tokens", 0),
+                        "input_tokens": stats.get("input_tokens", 0),
+                        "reasoning_output_tokens": stats.get("reasoning_output_tokens", 0),
+                        "time_to_first_token_seconds": stats.get("time_to_first_token_seconds", 0),
+                    }
                     await manager.broadcast({
                         "type": "chat_stream_diag",
                         "session_id": session_id,
-                        "diagnostics": {
-                            "generation_time_s": stats.get("generation_time_s", 0),
-                            "tokens_per_second": stats.get("tokens_per_second", 0),
-                            "token_count": stats.get("total_output_tokens", 0),
-                            "input_tokens": stats.get("input_tokens", 0),
-                            "reasoning_tokens": stats.get("reasoning_output_tokens", 0),
-                            "time_to_first_token": stats.get("time_to_first_token_seconds", 0),
-                        },
+                        "diagnostics": call_diagnostics,
                     })
 
         except asyncio.CancelledError:
             if content_buffer.strip():
-                conv.add_message("assistant", content_buffer)
+                _save_assistant(content_buffer)
             return
 
         # If chat.end never arrived (e.g. stream error), use accumulated content
-        stats = {}
+        if not output_items:
+            stats = {}
+            call_diagnostics = {}
         for item in output_items:
             if item.get("type") == "message":
                 txt = item.get("content", "")
                 if txt and not content_buffer:
                     content_buffer = txt
+
+        # Helper to broadcast chat_done with diagnostics
+        async def _chat_done(response: str):
+            d = {**call_diagnostics} if call_diagnostics else {}
+            await manager.broadcast({
+                "type": "chat_done", "session_id": session_id,
+                "response": response, "diagnostics": d,
+            })
+
+        # Helper to save assistant response with LLM context
+        def _save_assistant(content: str):
+            conv.add_message("assistant", content, context=json.dumps(messages, ensure_ascii=False))
 
         # ── Pause check ──────────────────────────────────────────
         if conv.pause_requested:
@@ -465,10 +480,7 @@ async def run_agent_loop(
             await conv.resume_event.wait()
             conv.resume_event.clear()
             if conv.stop_requested and not sleep_mode:
-                await manager.broadcast({
-                    "type": "chat_done", "session_id": session_id,
-                    "response": "[Stopped]",
-                })
+                await _chat_done("[Stopped]")
                 return
 
         # ── Detect tool call ─────────────────────────────────────
@@ -476,12 +488,9 @@ async def run_agent_loop(
 
         if not tool_call:
             # No tool call — conversation is done
-            await manager.broadcast({
-                "type": "chat_done", "session_id": session_id,
-                "response": content_buffer,
-            })
+            await _chat_done(content_buffer)
             if content_buffer.strip():
-                conv.add_message("assistant", content_buffer)
+                _save_assistant(content_buffer)
             return
 
         # ── Extract text before tool ─────────────────────────────
@@ -547,7 +556,7 @@ async def run_agent_loop(
                         "type": "chat_tool_result", "session_id": session_id,
                         "observation": observation,
                     })
-                    conv.add_message("assistant", content_buffer)
+                    _save_assistant(content_buffer)
                     conv.add_message("user", f"Overseer rejected your {tool_name} action. Feedback: {review_feedback}. Try a different approach.")
                     continue
 
@@ -566,10 +575,7 @@ async def run_agent_loop(
                         "type": "chat_tool_result", "session_id": session_id,
                         "observation": "[Approval timed out]",
                     })
-                    await manager.broadcast({
-                        "type": "chat_done", "session_id": session_id,
-                        "response": "[Approval timed out]",
-                    })
+                    await _chat_done("[Approval timed out]")
                     return
 
                 if not approval.get("approved", False):
@@ -579,7 +585,7 @@ async def run_agent_loop(
                         "type": "chat_tool_result", "session_id": session_id,
                         "observation": observation,
                     })
-                    conv.add_message("assistant", content_buffer)
+                    _save_assistant(content_buffer)
                     conv.add_message("user", f"Your {tool_name} action was rejected. Feedback: {feedback}. Try a different approach.")
                     continue
 
@@ -606,20 +612,14 @@ async def run_agent_loop(
                 last_user_msg = messages[-1]["content"] if messages else ""
                 if "reflect on your work" in last_user_msg.lower():
                     conv.sleep_mode = False
-                    await manager.broadcast({
-                        "type": "chat_done", "session_id": session_id,
-                        "response": f"[Sleep complete] {summary}",
-                    })
+                    await _chat_done(f"[Sleep complete] {summary}")
                     return
-                conv.add_message("assistant", content_buffer)
+                _save_assistant(content_buffer)
                 conv.add_message("user", "Now reflect on your work. Consider calling refine_memory_methodology to update your memory management rules. When you are truly finished, call finish_task again.")
                 continue
             else:
-                conv.add_message("assistant", content_buffer)
-                await manager.broadcast({
-                    "type": "chat_done", "session_id": session_id,
-                    "response": summary,
-                })
+                _save_assistant(content_buffer)
+                await _chat_done(summary)
                 return
 
         if tool_name == "ask_user":
@@ -632,7 +632,7 @@ async def run_agent_loop(
             except asyncio.TimeoutError:
                 answer = "[User did not respond]"
             answer_text = answer.get("feedback", answer) if isinstance(answer, dict) else str(answer)
-            conv.add_message("assistant", content_buffer)
+            _save_assistant(content_buffer)
             conv.add_message("user", f"User answered your question: {answer_text}")
             continue
 
@@ -646,17 +646,14 @@ async def run_agent_loop(
 
         # ── Feed back to LLM ────────────────────────────────────
         obs_trunc = MAX_DETAIL_OBSERVATION_LENGTH if tool_name == "read_detail" else MAX_TOOL_OBSERVATION_LENGTH
-        conv.add_message("assistant", content_buffer)
+        _save_assistant(content_buffer)
         continuation = "Continue your memory consolidation work." if sleep_mode else "Continue your response naturally."
         conv.add_message("user", f"Tool {tool_name} returned:\n{observation[:obs_trunc]}\n\n{continuation}")
 
         # Reset user_message so loop continues
         user_message = "__CONTINUE__"
 
-    await manager.broadcast({
-        "type": "chat_done", "session_id": session_id,
-        "response": "[I've completed what I can do. Feel free to ask for more.]",
-    })
+    await _chat_done("[I've completed what I can do. Feel free to ask for more.]")
 
 
 async def _resolve_model(lm_client: LMStudioClient) -> Optional[str]:
