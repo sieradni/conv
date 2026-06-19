@@ -56,6 +56,14 @@ function hideGenerating(diag) {
   if (pause) { pause.disabled = true; pause.textContent = 'pause'; }
 }
 
+/* ── Dividers ──────────────────────────────────────────────────── */
+
+function divider(color = 'white') {
+  const d = document.createElement('div');
+  d.className = `h-px bg-${color}/5 my-1 slide-up`;
+  return d;
+}
+
 /* ── Message rendering ────────────────────────────────────────── */
 
 function removeWelcome() {
@@ -67,22 +75,19 @@ function addMessage(text, color = 'slate-400') {
   msgCounter++;
   const id = msgId('msg');
   const d = document.createElement('div');
-  d.className = `glass rounded-lg p-2.5 slide-up border-l-2 border-${color2border(color)}-500/30`;
   d.id = id;
   d.dataset.msg = JSON.stringify({text, color, step_number: msgCounter});
-  d.innerHTML = `<div class="flex items-start gap-1.5">
-    <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
-    <div class="msg-text flex-1">
-      <span class="text-${color} text-[11px] leading-relaxed">${text}</span>
-    </div>
-  </div>
-  <div class="flex gap-1.5 items-center mt-1 pt-1 border-t border-white/5">
-    <button onclick="copyMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy">copy</button>
-    <button onclick="editMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit">edit</button>
-    <button onclick="deleteMsg('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Delete">delete</button>
-    <button onclick="rerunMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Rerun">rerun</button>
-    <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Branch">branch</button>
-  </div>`;
+  d.innerHTML = `<div class="h-px bg-white/5 my-1"></div>
+<div class="msg-text">
+  <span class="text-${color} text-[11px] leading-relaxed">${text}</span>
+</div>
+<div class="flex gap-1.5 items-center mt-1 pt-1 border-t border-white/5">
+  <button onclick="copyMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Copy">copy</button>
+  <button onclick="editMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Edit">edit</button>
+  <button onclick="deleteMsg('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Delete">delete</button>
+  <button onclick="rerunMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Rerun">rerun</button>
+  <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded" title="Branch">branch</button>
+</div>`;
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
@@ -93,26 +98,22 @@ function addResponseMsg(text, color = 'emerald-400', diag) {
   msgCounter++;
   const id = msgId('msg');
   const d = document.createElement('div');
-  d.className = `glass rounded-lg p-2.5 slide-up border-l-2 border-${color2border(color)}-500/30`;
   d.id = id;
   d.dataset.msg = JSON.stringify({text, color, step_number: msgCounter});
-  let html = `<div class="flex items-start gap-1.5">
-    <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
-    <div class="msg-text flex-1">
-      <div class="msg-content markdown text-${color} text-[11px] leading-relaxed">${renderMarkdown(text)}</div>
-    </div>
-  </div>`;
-  // Persist diagnostics in the message card
+  let html = `<div class="h-px bg-white/5 my-1"></div>
+<div class="msg-text">
+  <div class="msg-content markdown text-${color} text-[11px] leading-relaxed">${renderMarkdown(text)}</div>
+</div>`;
   if (diag) {
     html += `<div class="flex gap-2 mt-1 pt-1 border-t border-white/5 text-[8px] font-mono text-slate-600">${formatDiag(diag)}</div>`;
   }
   html += `<div class="flex gap-1.5 items-center mt-1 pt-1 border-t border-white/5">
-    <button onclick="copyMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">copy</button>
-    <button onclick="editMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">edit</button>
-    <button onclick="deleteMsg('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded">delete</button>
-    <button onclick="rerunMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">rerun</button>
-    <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded">branch</button>
-  </div>`;
+  <button onclick="copyMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">copy</button>
+  <button onclick="editMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">edit</button>
+  <button onclick="deleteMsg('${id}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded">delete</button>
+  <button onclick="rerunMsg('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">rerun</button>
+  <button onclick="branchHere('${id}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded">branch</button>
+</div>`;
   d.innerHTML = html;
   conversation.appendChild(d);
   removeWelcome();
@@ -124,15 +125,12 @@ function addMsgWithCursor(text, color = 'emerald-400') {
   msgCounter++;
   const id = msgId('msg');
   const d = document.createElement('div');
-  d.className = `glass rounded-lg p-2.5 slide-up border-l-2 border-${color2border(color)}-500/30`;
   d.id = id;
   d.dataset.msg = JSON.stringify({text, color, step_number: msgCounter});
-  d.innerHTML = `<div class="flex items-start gap-1.5">
-    <span class="text-slate-500 text-[11px] shrink-0 mt-0.5">&#9656;</span>
-    <div class="msg-text flex-1">
-      <div class="msg-content markdown text-${color} text-[11px] leading-relaxed">${text}</div><span class="msg-cursor text-${color} text-[11px] font-bold animate-pulse">...</span>
-    </div>
-  </div>`;
+  d.innerHTML = `<div class="h-px bg-white/5 my-1"></div>
+<div class="msg-text">
+  <span class="msg-content text-${color} text-[11px] leading-relaxed">${text}</span><span class="msg-cursor text-${color} text-[11px] font-bold animate-pulse">...</span>
+</div>`;
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
@@ -201,10 +199,8 @@ function editMsg(id) {
 
 function deleteMsg(id) {
   const el = $(id); if (!el) return;
-  el.innerHTML = `<div class="flex items-center gap-1.5">
-    <span class="text-slate-600 text-[11px] shrink-0">&#9656;</span>
-    <span class="text-[11px] text-slate-600 italic">deleted</span>
-  </div>`;
+  el.innerHTML = `<div class="h-px bg-white/5 my-1"></div>
+<div><span class="text-[11px] text-slate-600 italic">deleted</span></div>`;
 }
 
 function rerunMsg(id) {
@@ -237,14 +233,14 @@ function addToolCard(msg) {
 
   const d = document.createElement('div');
   d.id = tid;
-  d.className = 'glass rounded-lg p-2 slide-up border-l-2 border-indigo-500/30 ml-3 my-0.5';
-  d.innerHTML = `<div class="flex items-center gap-1.5 mb-1">
-    <span class="text-[9px] text-indigo-400 font-medium">&#9881; ${escapeHtml(msg.tool_name)}</span>
-    ${diagStr ? `<span class="text-[8px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
-    ${argsStr ? `<button id="${tid}-tbtn" onclick="toggleToolArgs('${tid}')" class="text-[8px] text-slate-600 hover:text-slate-400 ml-1">hide</button>` : ''}
-  </div>
-  <div id="${tid}-a" class="${argsStr ? '' : 'hidden'}"><pre class="text-[9px] text-slate-500 bg-black/30 border border-white/5 rounded p-1 mono overflow-x-auto max-w-full whitespace-pre-wrap break-all" style="max-height:200px">${escapeHtml(argsStr)}</pre></div>
-  <div id="${tid}-r" class="text-[10px] text-slate-500 leading-relaxed"></div>`;
+  d.innerHTML = `<div class="h-px bg-indigo-500/10 my-1"></div>
+<div class="flex items-center gap-1.5 mb-1">
+  <span class="text-[9px] text-indigo-400 font-medium">&#9881; ${escapeHtml(msg.tool_name)}</span>
+  ${diagStr ? `<span class="text-[8px] text-slate-600 font-mono ml-auto">${diagStr}</span>` : ''}
+  ${argsStr ? `<button id="${tid}-tbtn" onclick="toggleToolArgs('${tid}')" class="text-[8px] text-slate-600 hover:text-slate-400 ml-1">hide</button>` : ''}
+</div>
+<div id="${tid}-a" class="${argsStr ? '' : 'hidden'}"><pre class="text-[9px] text-slate-500 bg-black/30 border border-white/5 rounded p-1 mono overflow-x-auto max-w-full whitespace-pre-wrap break-all" style="max-height:200px">${escapeHtml(argsStr)}</pre></div>
+<div id="${tid}-r" class="text-[10px] text-slate-500 leading-relaxed"></div>`;
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
@@ -290,18 +286,18 @@ function addOverseerReview(msg) {
   const id = 'ov-' + Date.now();
 
   const d = document.createElement('div');
-  d.className = `slide-up glass rounded-lg p-2.5 border-l-2 border-${color}-500/40 ml-3 my-0.5`;
-  d.innerHTML = `<div class="flex items-center justify-between mb-1">
-    <span class="text-[9px] font-bold text-${color}-400 uppercase tracking-wider">&#128220; overseer: ${status}</span>
-    <div class="flex gap-1">
-      <button onclick="toggle('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">${msg.feedback ? 'details' : ''}</button>
-      ${!approved ? `<button onclick="overrideOverseer()" class="text-[9px] text-indigo-400 hover:text-indigo-300 transition">override</button>` : ''}
-    </div>
+  d.innerHTML = `<div class="h-px bg-${color}-500/10 my-1"></div>
+<div class="flex items-center justify-between mb-1">
+  <span class="text-[9px] font-bold text-${color}-400 uppercase tracking-wider">&#128220; overseer: ${status}</span>
+  <div class="flex gap-1">
+    <button onclick="toggle('${id}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition">${msg.feedback ? 'details' : ''}</button>
+    ${!approved ? `<button onclick="overrideOverseer()" class="text-[9px] text-indigo-400 hover:text-indigo-300 transition">override</button>` : ''}
   </div>
-  <div class="text-[10px] text-slate-400 leading-relaxed">${escapeHtml(msg.reasoning||'')}</div>
-  <div id="${id}" class="${msg.feedback ? '' : 'hidden'}">
-    ${msg.feedback ? `<p class="text-[10px] text-slate-500 mt-1 italic">${escapeHtml(msg.feedback)}</p>` : ''}
-  </div>`;
+</div>
+<div class="text-[10px] text-slate-400 leading-relaxed">${escapeHtml(msg.reasoning||'')}</div>
+<div id="${id}" class="${msg.feedback ? '' : 'hidden'}">
+  ${msg.feedback ? `<p class="text-[10px] text-slate-500 mt-1 italic">${escapeHtml(msg.feedback)}</p>` : ''}
+</div>`;
   conversation.appendChild(d);
   removeWelcome();
   scrollChat();
@@ -444,12 +440,12 @@ function handleMessage(msg) {
         const thinkingId = msgId('thinking');
         const d = document.createElement('div');
         d.id = thinkingId;
-        d.className = 'glass rounded-lg p-2 slide-up border-l-2 border-amber-500/30 ml-3 my-0.5';
-        d.innerHTML = `<div class="flex items-center gap-1.5 mb-1">
-          <span class="text-[9px] font-medium text-amber-400">&#9881; thinking</span>
-          <button onclick="toggleThinking('${thinkingId}')" class="ml-auto text-[8px] text-slate-600 hover:text-slate-400">\u2212</button>
-        </div>
-        <div class="text-[10px] text-amber-300/60 italic leading-relaxed thinking-content thinking-body" id="${thinkingId}-body"></div>`;
+        d.innerHTML = `<div class="h-px bg-amber-500/10 my-1"></div>
+<div class="flex items-center gap-1.5 mb-1">
+  <span class="text-[9px] font-medium text-amber-400">&#9881; thinking</span>
+  <button onclick="toggleThinking('${thinkingId}')" class="ml-auto text-[8px] text-slate-600 hover:text-slate-400">\u2212</button>
+</div>
+<div class="text-[10px] text-amber-300/60 italic leading-relaxed thinking-content thinking-body" id="${thinkingId}-body"></div>`;
         const chatEl = chatResponseId ? $(chatResponseId) : null;
         if (chatEl) {
           conversation.insertBefore(d, chatEl);
@@ -543,10 +539,6 @@ function handleMessage(msg) {
       showApproval(msg);
       break;
 
-    case 'user_message':
-      addMessage(`you: ${msg.message}`, 'indigo-400');
-      break;
-
     case 'chat_done':
       hideGenerating(msg.diagnostics);
       if (sleepMode) {
@@ -582,6 +574,18 @@ function handleMessage(msg) {
               diagRow.textContent = formatDiag(msg.diagnostics);
               el.appendChild(diagRow);
             }
+          }
+          // Add action buttons to completed streaming message
+          if (!el.querySelector('button[onclick*="copyMsg"]')) {
+            const btnRow = document.createElement('div');
+            btnRow.className = 'flex gap-1.5 items-center mt-1 pt-1 border-t border-white/5';
+            btnRow.innerHTML = `
+  <button onclick="copyMsg('${chatResponseId}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">copy</button>
+  <button onclick="editMsg('${chatResponseId}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">edit</button>
+  <button onclick="deleteMsg('${chatResponseId}')" class="text-[9px] text-slate-600 hover:text-rose-400 transition px-1.5 py-0.5 bg-black/30 rounded">delete</button>
+  <button onclick="rerunMsg('${chatResponseId}')" class="text-[9px] text-slate-600 hover:text-slate-400 transition px-1.5 py-0.5 bg-black/30 rounded">rerun</button>
+  <button onclick="branchHere('${chatResponseId}')" class="text-[9px] text-slate-600 hover:text-indigo-400 transition px-1.5 py-0.5 bg-black/30 rounded">branch</button>`;
+            el.appendChild(btnRow);
           }
         }
         chatResponseId = null;
@@ -624,11 +628,9 @@ function handleMessage(msg) {
     case 'model_load_end':
     case 'prompt_processing_start':
     case 'prompt_processing_end':
-      // Silently handle — these are mostly informational
       break;
 
     default:
-      // Unknown event type, log silently
       break;
   }
 }

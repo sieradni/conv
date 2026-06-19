@@ -1,22 +1,32 @@
 {
-  "session_id": "b60fcdfd",
+  "session_id": "6eedf7ee",
   "chat_history": [
     {
       "role": "user",
       "content": "Hi",
-      "timestamp": 1781838375.5348847
+      "timestamp": 1781840608.2322986
     },
     {
       "role": "user",
-      "content": "clear the todolist",
-      "timestamp": 1781838739.7903252
+      "content": "hi",
+      "timestamp": 1781840680.5980463
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! How can I help you today?",
+      "timestamp": 1781840692.3440375
+    },
+    {
+      "role": "user",
+      "content": "test",
+      "timestamp": 1781840884.2349823
     }
   ],
   "current_goal": "",
   "approval_mode": "WAIT_FOR_USER",
   "model_instance_id": "google/gemma-4-12b-qat",
-  "thinking_level": "off",
-  "created_at": 1781838375.203933,
-  "updated_at": 1781838739.790327,
+  "thinking_level": "",
+  "created_at": 1781840607.920988,
+  "updated_at": 1781840884.2349832,
   "version": 2
 }

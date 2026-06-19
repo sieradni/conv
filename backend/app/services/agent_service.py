@@ -383,11 +383,6 @@ async def run_agent_loop(
 
     logger.info(f"[{session_id}] Starting agent loop (sleep={sleep_mode}, model={model_id})")
 
-    # Save user message to history
-    if user_message != "__CONTINUE__":
-        display_msg = "Please continue." if user_message == "__CONTINUE__" else user_message
-        conv.add_message("user", display_msg)
-
     await manager.broadcast({
         "type": "chat_start", "session_id": session_id, "message": user_message,
     })
@@ -552,11 +547,8 @@ async def run_agent_loop(
                         "type": "chat_tool_result", "session_id": session_id,
                         "observation": observation,
                     })
-                    messages.append({"role": "assistant", "content": content_buffer})
-                    messages.append({
-                        "role": "user",
-                        "content": f"Overseer rejected your {tool_name} action. Feedback: {review_feedback}. Try a different approach.",
-                    })
+                    conv.add_message("assistant", content_buffer)
+                    conv.add_message("user", f"Overseer rejected your {tool_name} action. Feedback: {review_feedback}. Try a different approach.")
                     continue
 
             elif mode == "WAIT_FOR_USER":
@@ -587,11 +579,8 @@ async def run_agent_loop(
                         "type": "chat_tool_result", "session_id": session_id,
                         "observation": observation,
                     })
-                    messages.append({"role": "assistant", "content": content_buffer})
-                    messages.append({
-                        "role": "user",
-                        "content": f"Your {tool_name} action was rejected. Feedback: {feedback}. Try a different approach.",
-                    })
+                    conv.add_message("assistant", content_buffer)
+                    conv.add_message("user", f"Your {tool_name} action was rejected. Feedback: {feedback}. Try a different approach.")
                     continue
 
         # ── Execute tool ─────────────────────────────────────────
@@ -622,11 +611,8 @@ async def run_agent_loop(
                         "response": f"[Sleep complete] {summary}",
                     })
                     return
-                messages.append({"role": "assistant", "content": content_buffer})
-                messages.append({
-                    "role": "user",
-                    "content": "Now reflect on your work. Consider calling refine_memory_methodology to update your memory management rules. When you are truly finished, call finish_task again.",
-                })
+                conv.add_message("assistant", content_buffer)
+                conv.add_message("user", "Now reflect on your work. Consider calling refine_memory_methodology to update your memory management rules. When you are truly finished, call finish_task again.")
                 continue
             else:
                 conv.add_message("assistant", content_buffer)
@@ -646,11 +632,8 @@ async def run_agent_loop(
             except asyncio.TimeoutError:
                 answer = "[User did not respond]"
             answer_text = answer.get("feedback", answer) if isinstance(answer, dict) else str(answer)
-            messages.append({"role": "assistant", "content": content_buffer})
-            messages.append({
-                "role": "user",
-                "content": f"User answered your question: {answer_text}",
-            })
+            conv.add_message("assistant", content_buffer)
+            conv.add_message("user", f"User answered your question: {answer_text}")
             continue
 
         if tool_name == "set_goal":
@@ -663,12 +646,9 @@ async def run_agent_loop(
 
         # ── Feed back to LLM ────────────────────────────────────
         obs_trunc = MAX_DETAIL_OBSERVATION_LENGTH if tool_name == "read_detail" else MAX_TOOL_OBSERVATION_LENGTH
-        messages.append({"role": "assistant", "content": content_buffer})
+        conv.add_message("assistant", content_buffer)
         continuation = "Continue your memory consolidation work." if sleep_mode else "Continue your response naturally."
-        messages.append({
-            "role": "user",
-            "content": f"Tool {tool_name} returned:\n{observation[:obs_trunc]}\n\n{continuation}",
-        })
+        conv.add_message("user", f"Tool {tool_name} returned:\n{observation[:obs_trunc]}\n\n{continuation}")
 
         # Reset user_message so loop continues
         user_message = "__CONTINUE__"
