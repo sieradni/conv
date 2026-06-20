@@ -721,7 +721,7 @@ function handleMessage(msg) {
       if (pauseBtn) { pauseBtn.textContent = 'resume'; pauseBtn.disabled = false; }
       break;
 
-    case 'llm_call':
+    case 'raw_lm_request':
       showGenerating('llm thinking...');
       break;
 

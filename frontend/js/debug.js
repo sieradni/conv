@@ -22,7 +22,6 @@ function logApiCall(method, url, status, duration, requestBody, responseBody) {
     requestBody: typeof requestBody === 'string' ? requestBody : JSON.stringify(requestBody),
     responseBody: typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody),
   });
-  if (debugLog.length > 200) debugLog.splice(0, debugLog.length - 200);
   const active = $('dbgview-api-log');
   if (active && active.offsetParent !== null) renderApiLog();
 }
@@ -30,29 +29,54 @@ function logApiCall(method, url, status, duration, requestBody, responseBody) {
 function renderApiLog() {
   const el = $('dbgview-api-log');
   if (!el) return;
+
+  // Save expanded state
+  const expanded = new Set();
+  el.querySelectorAll('[id^="api-"]').forEach(d => {
+    if (!d.classList.contains('hidden')) {
+      const idx = parseInt(d.id.replace('api-', ''), 10);
+      if (!isNaN(idx)) expanded.add(idx);
+    }
+  });
+
   if (debugLog.length === 0) {
     el.innerHTML = '<div class="text-[10px] text-slate-600 italic">No API calls logged yet.</div>';
     return;
   }
-  let html = '';
-  for (const entry of debugLog.slice(-50).reverse()) {
+
+  let left = '';
+  let right = '';
+  for (let i = debugLog.length - 1; i >= 0; i--) {
+    const entry = debugLog[i];
     const color = entry.status >= 400 ? 'text-rose-400' : entry.status >= 300 ? 'text-amber-400' : 'text-emerald-400';
-    const uid = 'api-' + Math.random().toString(36).slice(2,6);
-    html += `<div class="text-[9px] font-mono leading-relaxed cursor-pointer hover:bg-white/5" onclick="document.getElementById('${uid}').classList.toggle('hidden')">
+    const isExpanded = expanded.has(i) ? '' : 'hidden';
+    const isStatus = entry.method === 'GET' && !entry.url.includes('history');
+    const row = `<div class="text-[9px] font-mono leading-relaxed cursor-pointer hover:bg-white/5" onclick="document.getElementById('api-${i}').classList.toggle('hidden')">
       <span class="text-slate-600">${entry.time}</span>
       <span class="${color}">${entry.method}</span>
       <span class="text-slate-400">${escapeHtml(entry.url)}</span>
       <span class="${color}">${entry.status}</span>
       <span class="text-slate-600">${entry.duration ? entry.duration.toFixed(1) + 's' : ''}</span>
-      <div id="${uid}" class="hidden mt-1 pl-2 border-l border-white/5">
+      <div id="api-${i}" class="${isExpanded} mt-1 pl-2 border-l border-white/5">
         <div class="text-[7px] text-amber-500/60">REQUEST</div>
         <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">${escapeHtml(entry.requestBody || '(empty)')}</div>
         <div class="text-[7px] text-emerald-500/60 mt-1">RESPONSE</div>
         <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">${escapeHtml(entry.responseBody || '(empty)')}</div>
       </div>
     </div>`;
+    if (isStatus) { right += row; } else { left += row; }
   }
-  el.innerHTML = html;
+
+  el.innerHTML = `<div style="display:flex;gap:8px;height:100%;min-height:0">
+    <div style="flex:1;overflow-y:auto;min-height:0">
+      <div class="text-[8px] text-slate-600 font-bold uppercase tracking-wider mb-1">ACTIONS</div>
+      ${left}
+    </div>
+    <div style="flex:1;overflow-y:auto;min-height:0">
+      <div class="text-[8px] text-slate-600 font-bold uppercase tracking-wider mb-1">RESOURCE / STATUS</div>
+      ${right}
+    </div>
+  </div>`;
 }
 
 /* ── Context Inspector ────────────────────────────────────────── */
@@ -91,7 +115,7 @@ async function renderContextInspector() {
             html += `<div class="mb-1.5 pl-2 border-l border-white/5">
               <span class="text-[7px] font-bold ${cColor}">${label}</span>
               <span class="text-[7px] text-slate-600">(${cContent.length} chars)</span>
-              <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto mt-0.5">${escapeHtml(cContent.substring(0, 5000))}${cContent.length > 5000 ? '<span class="text-slate-600"> ...</span>' : ''}</div>
+              <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-32 overflow-y-auto mt-0.5">${escapeHtml(cContent.substring(0, 10000))}${cContent.length > 10000 ? '<span class="text-slate-600"> ...</span>' : ''}</div>
             </div>`;
           }
           html += `</div></div>`;
@@ -135,7 +159,6 @@ function logRawEvent(eventData) {
     time: new Date().toLocaleTimeString(),
     data: eventData,
   });
-  if (debugEventLog.length > 500) debugEventLog.splice(0, debugEventLog.length - 500);
   const active = $('dbgview-events');
   if (active && active.offsetParent !== null) renderRawEvents();
 }
@@ -143,22 +166,66 @@ function logRawEvent(eventData) {
 function renderRawEvents() {
   const el = $('dbgview-events');
   if (!el) return;
+
+  // Save expanded state
+  const expanded = new Set();
+  el.querySelectorAll('[id^="evt-"]').forEach(d => {
+    if (!d.classList.contains('hidden')) {
+      const idx = parseInt(d.id.replace('evt-', ''), 10);
+      if (!isNaN(idx)) expanded.add(idx);
+    }
+  });
+
   if (debugEventLog.length === 0) {
     el.innerHTML = '<div class="text-[10px] text-slate-600 italic">No events yet.</div>';
     return;
   }
+
   let html = '';
-  for (const entry of debugEventLog.slice(-100).reverse()) {
+  for (let i = debugEventLog.length - 1; i >= 0; i--) {
+    const entry = debugEventLog[i];
     const evtType = entry.data.type || 'unknown';
-    const typeColor = evtType === 'chat_done' ? 'text-emerald-400' : evtType === 'reasoning_done' ? 'text-amber-400' : evtType === 'tool_use' ? 'text-rose-400' : 'text-slate-400';
-    const uid = 'evt-' + Math.random().toString(36).slice(2,6);
-    html += `<div class="text-[8px] font-mono leading-relaxed border-b border-white/5 pb-0.5 mb-0.5 cursor-pointer hover:bg-white/5" onclick="document.getElementById('${uid}').classList.toggle('hidden')">
-      <span class="text-slate-600">${entry.time}</span>
-      <span class="${typeColor}">${evtType}</span>
-      <div id="${uid}" class="hidden mt-0.5 pl-2 border-l border-white/5">
-        <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">${escapeHtml(JSON.stringify(entry.data, null, 2))}</div>
-      </div>
-    </div>`;
+    const isExpanded = expanded.has(i) ? '' : 'hidden';
+
+    if (evtType === 'chat_token' || evtType === 'chat_stream_diag' || evtType === 'chat_reasoning_token' || evtType === 'ping') continue;
+    if (evtType === 'raw_lm_request') {
+      const msgCount = (entry.data.messages || []).length;
+      const model = entry.data.model || '?';
+      html += `<div class="border border-indigo-500/15 rounded-md px-2 py-1.5 mb-1 bg-indigo-500/5">
+        <div class="text-[8px] font-mono leading-relaxed cursor-pointer hover:opacity-80" onclick="document.getElementById('evt-${i}').classList.toggle('hidden')">
+          <span class="text-slate-600">${entry.time}</span>
+          <span class="text-indigo-400 font-bold">LM REQUEST</span>
+          <span class="text-slate-500">${model}</span>
+          <span class="text-slate-600">${msgCount} msgs</span>
+        </div>
+        <div id="evt-${i}" class="${isExpanded} mt-1 pl-2 border-l border-indigo-500/20">
+          <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">${(escapeHtml(JSON.stringify(entry.data.messages, null, 2)) || '(empty)').replace(/\\n/g, '\n')}</div>
+        </div>
+      </div>`;
+    } else if (evtType === 'raw_lm_response') {
+      const content = entry.data.content || '';
+      const diag = entry.data.diagnostics || {};
+      const tokenInfo = diag.total_output_tokens ? `${diag.total_output_tokens} tokens` : '';
+      html += `<div class="border border-emerald-500/15 rounded-md px-2 py-1.5 mb-1 bg-emerald-500/5">
+        <div class="text-[8px] font-mono leading-relaxed cursor-pointer hover:opacity-80" onclick="document.getElementById('evt-${i}').classList.toggle('hidden')">
+          <span class="text-slate-600">${entry.time}</span>
+          <span class="text-emerald-400 font-bold">LM RESPONSE</span>
+          <span class="text-slate-500">${tokenInfo}</span>
+        </div>
+        <div id="evt-${i}" class="${isExpanded} mt-1 pl-2 border-l border-emerald-500/20">
+          <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-64 overflow-y-auto">${escapeHtml(content) || '(empty)'}</div>
+        </div>
+      </div>`;
+    } else {
+      const typeColor = evtType === 'chat_done' ? 'text-emerald-400' : evtType === 'reasoning_done' ? 'text-amber-400' : evtType === 'tool_use' ? 'text-rose-400' : 'text-slate-400';
+      html += `<div class="text-[8px] font-mono leading-relaxed border-b border-white/5 pb-0.5 mb-0.5 cursor-pointer hover:bg-white/5" onclick="document.getElementById('evt-${i}').classList.toggle('hidden')">
+        <span class="text-slate-600">${entry.time}</span>
+        <span class="${typeColor}">${evtType}</span>
+        <div id="evt-${i}" class="${isExpanded} mt-0.5 pl-2 border-l border-white/5">
+          <div class="text-[7px] text-slate-500 font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">${escapeHtml(JSON.stringify(entry.data, null, 2))}</div>
+        </div>
+      </div>`;
+    }
   }
   el.innerHTML = html;
 }

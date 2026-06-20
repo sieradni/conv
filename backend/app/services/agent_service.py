@@ -401,10 +401,18 @@ async def run_agent_loop(
         if rnd > 0:
             messages, _ = await build_context_messages("__CONTINUE__", sleep_mode)
 
-        await manager.broadcast({"type": "llm_call", "session_id": session_id})
+        await manager.broadcast({
+            "type": "raw_lm_request",
+            "session_id": session_id,
+            "messages": messages,
+            "model": model_id,
+            "temperature": 0.7,
+            "reasoning": conv.thinking_level or None,
+        })
 
         content_buffer = ""
         output_items = []
+        stream_start = time.time()
 
         # ── Streaming LLM call (v2 API) ──────────────────────────
         try:
@@ -434,7 +442,7 @@ async def run_agent_loop(
                     # Update conversation stats
                     stats = event.stats
                     call_diagnostics = {
-                        "generation_time_s": stats.get("generation_time_s", 0),
+                        "generation_time_s": stats.get("generation_time_s", time.time() - stream_start),
                         "tokens_per_second": stats.get("tokens_per_second", 0),
                         "total_output_tokens": stats.get("total_output_tokens", 0),
                         "input_tokens": stats.get("input_tokens", 0),
@@ -465,6 +473,12 @@ async def run_agent_loop(
         # Helper to broadcast chat_done with diagnostics
         async def _chat_done(response: str):
             d = {**call_diagnostics} if call_diagnostics else {}
+            await manager.broadcast({
+                "type": "raw_lm_response",
+                "session_id": session_id,
+                "content": response,
+                "diagnostics": d,
+            })
             await manager.broadcast({
                 "type": "chat_done", "session_id": session_id,
                 "response": response, "diagnostics": d,

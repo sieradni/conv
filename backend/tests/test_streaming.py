@@ -47,7 +47,7 @@ class TestEventRelay:
         types = [c[0][0]["type"] for c in calls]
         assert "reasoning_start" in types
         assert "chat_reasoning_token" in types
-        assert "reasoning_end" in types
+        assert "reasoning_done" in types
 
     async def test_tool_call_flow(self, relay, mock_manager):
         await relay.handle(ToolCallStart(tool="read_file", provider_info={}))
