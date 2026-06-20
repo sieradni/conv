@@ -3,9 +3,9 @@
   "chat_history": [],
   "current_goal": "",
   "approval_mode": "WAIT_FOR_USER",
-  "model_instance_id": "",
+  "model_instance_id": "google/gemma-4-12b-qat",
   "thinking_level": "",
   "created_at": 1781933309.2942107,
-  "updated_at": 1781933309.294295,
+  "updated_at": 1781934088.327384,
   "version": 2
 }

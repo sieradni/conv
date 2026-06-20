@@ -67,6 +67,16 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 19. finish_task — Args: {"summary": "brief summary"}
     Call when you have fully completed the current goal. This signals completion and streams the summary to the user.
 
+**Reminders & Timers:**
+20. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
+    Create a reminder or timer. Provide trigger_at (epoch seconds) or trigger_in (seconds from now).
+21. list_reminders (no approval needed) — Args: {}
+    List all reminders with their status.
+22. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
+    Modify an existing reminder. Only provided fields are updated.
+23. delete_reminder (no approval needed) — Args: {"id": "..."}
+    Delete a reminder by its id.
+
 How to call a tool:
 - Put a JSON code block in your response like:
   ```json
@@ -153,6 +163,16 @@ Available tools:
 **Memory methodology:**
 17. refine_memory_methodology (no approval needed) — Args: {"new_rules": "markdown rules", "reflection": "why"}
     Update your memory management guidelines and log the change to the audit trail.
+
+**Reminders & Timers:**
+18. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
+    Create a reminder or timer. Provide trigger_at (epoch seconds) or trigger_in (seconds from now).
+19. list_reminders (no approval needed) — Args: {}
+    List all reminders with their status.
+20. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
+    Modify an existing reminder. Only provided fields are updated.
+21. delete_reminder (no approval needed) — Args: {"id": "..."}
+    Delete a reminder by its id.
 
 How to call a tool:
 - Put a JSON code block in your response like:

@@ -15,6 +15,7 @@ NOTES_FILE = APP_DIR / "user_notes.md"
 DIAG_FILE = APP_DIR / "diagnostics.json"
 MEMORY_FILE = APP_DIR / "memory.json"
 MEMORY_RULES_FILE = APP_DIR / "memory_rules.md"
+REMINDERS_FILE = APP_DIR / "reminders.json"
 META_PROMPT_HISTORY_LOG = APP_DIR / "meta_prompt_history.log"
 
 LM_STUDIO_BASE_URL = os.environ.get("LM_STUDIO_URL", "http://localhost:1234")

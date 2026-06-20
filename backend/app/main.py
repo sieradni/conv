@@ -18,17 +18,24 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Background task refs
 _sleep_task: asyncio.Task | None = None
+_reminder_task: asyncio.Task | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _sleep_task
+    global _sleep_task, _reminder_task
     _sleep_task = asyncio.create_task(sleep_loop(interval_seconds=3600))
     logger.info("Sleep flow loop started (every 3600s)")
+    from app.services.reminder_service import get_reminder_service
+    _reminder_task = asyncio.create_task(get_reminder_service().check_loop())
+    logger.info("Reminder checker started (every 5s)")
     yield
     if _sleep_task and not _sleep_task.done():
         _sleep_task.cancel()
         logger.info("Sleep flow loop cancelled")
+    if _reminder_task and not _reminder_task.done():
+        _reminder_task.cancel()
+        logger.info("Reminder checker cancelled")
 
 
 app = FastAPI(title="conv agent framework", lifespan=lifespan)
@@ -52,6 +59,7 @@ from app.api.notes import router as notes_router
 from app.api.tools import router as tools_router
 from app.api.self_dev import router as self_dev_router
 from app.api.system import router as system_router
+from app.api.reminders import router as reminders_router
 
 app.include_router(health_router)
 app.include_router(session_router)
@@ -62,6 +70,7 @@ app.include_router(notes_router)
 app.include_router(tools_router)
 app.include_router(self_dev_router)
 app.include_router(system_router)
+app.include_router(reminders_router)
 
 
 # ── WebSocket ──────────────────────────────────────────────────────

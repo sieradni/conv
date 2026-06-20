@@ -12,7 +12,7 @@ function switchView(view) {
       ? 'nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
       : 'nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition';
   });
-  if (view === 'notes') loadNotes();
+  if (view === 'notes') { loadNotes(); initNotesView(); switchNotesView('notes'); }
   if (view === 'memory') { loadMemoryGraph(); switchMemView('nodes'); }
   if (view === 'models') loadModelList();
   if (view === 'debug') initDebugView();
@@ -32,6 +32,7 @@ function switchView(view) {
   setInterval(checkLmStatus, 10000);
   initSystemMonitor();
   loadThinkingLevel();
+  updateReminderTimeMin();
 
   // Thinking level change handler
   const tlSelect = $('thinking-level');

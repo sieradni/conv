@@ -32,6 +32,8 @@ CHAT_PAUSED = "chat_paused"
 USER_MESSAGE = "user_message"
 GOAL_SET = "goal_set"
 ERROR = "error"
+REMINDER_FIRED = "reminder_fired"
+REMINDERS_UPDATED = "reminders_updated"
 PING = "ping"
 
 

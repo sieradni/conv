@@ -744,6 +744,18 @@ function handleMessage(msg) {
       isRunning = false;
       break;
 
+    case 'reminder_fired':
+      {
+        const r = msg.reminder;
+        addMessage(`\u23f0 reminder: ${r.title}${r.message ? ' \u2014 ' + r.message : ''}`, 'amber-400');
+        loadReminders();
+      }
+      break;
+
+    case 'reminders_updated':
+      loadReminders();
+      break;
+
     case 'model_load_start':
     case 'model_load_progress':
     case 'model_load_end':

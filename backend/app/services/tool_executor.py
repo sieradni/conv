@@ -57,7 +57,7 @@ def get_executor() -> ToolExecutor:
 
 def _register_defaults(executor: ToolExecutor):
     """Register all built-in tools."""
-    from app.tools import file_io, memory_tools, system_tools, self_dev_tools
+    from app.tools import file_io, memory_tools, system_tools, self_dev_tools, reminder_tools
 
     # File I/O
     executor.register("read_file", file_io.read_file)
@@ -86,3 +86,9 @@ def _register_defaults(executor: ToolExecutor):
     executor.register("propose_change", self_dev_tools.propose_change)
     executor.register("run_self_test", self_dev_tools.run_self_test)
     executor.register("deploy_change", self_dev_tools.deploy_change)
+
+    # Reminders
+    executor.register("create_reminder", reminder_tools.create_reminder)
+    executor.register("list_reminders", reminder_tools.list_reminders)
+    executor.register("update_reminder", reminder_tools.update_reminder)
+    executor.register("delete_reminder", reminder_tools.delete_reminder)
