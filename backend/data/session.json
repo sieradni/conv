@@ -26,9 +26,9 @@
   ],
   "current_goal": "",
   "approval_mode": "WAIT_FOR_USER",
-  "model_instance_id": "google/gemma-4-e4b",
+  "model_instance_id": "",
   "thinking_level": "",
   "created_at": 1781935693.104122,
-  "updated_at": 1781935707.1298635,
+  "updated_at": 1781936371.116972,
   "version": 2
 }

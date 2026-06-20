@@ -77,6 +77,16 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 23. delete_reminder (no approval needed) — Args: {"id": "..."}
     Delete a reminder by its id.
 
+**Stopwatch:**
+24. stopwatch_start (no approval needed) — Args: {}
+    Start the stopwatch from its current position.
+25. stopwatch_stop (no approval needed) — Args: {}
+    Stop the stopwatch and report the elapsed time.
+26. stopwatch_check (no approval needed) — Args: {}
+    Check the current stopwatch time without changing it.
+27. stopwatch_reset (no approval needed) — Args: {}
+    Reset the stopwatch to zero.
+
 How to call a tool:
 - Put a JSON code block in your response like:
   ```json
@@ -173,6 +183,16 @@ Available tools:
     Modify an existing reminder. Only provided fields are updated.
 21. delete_reminder (no approval needed) — Args: {"id": "..."}
     Delete a reminder by its id.
+
+**Stopwatch:**
+22. stopwatch_start (no approval needed) — Args: {}
+    Start the stopwatch from its current position.
+23. stopwatch_stop (no approval needed) — Args: {}
+    Stop the stopwatch and report the elapsed time.
+24. stopwatch_check (no approval needed) — Args: {}
+    Check the current stopwatch time without changing it.
+25. stopwatch_reset (no approval needed) — Args: {}
+    Reset the stopwatch to zero.
 
 How to call a tool:
 - Put a JSON code block in your response like:

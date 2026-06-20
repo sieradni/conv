@@ -14,6 +14,7 @@ function switchNotesView(view) {
   });
   if (view === 'reminders') loadReminders();
   if (view === 'notes') loadNotes();
+  if (view === 'stopwatch') { loadStopwatch(); }
 }
 
 function initNotesView() {
