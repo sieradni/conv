@@ -114,21 +114,6 @@ class ReminderService:
         title = reminder["title"]
         message = reminder["message"]
 
-        # Strategy 1: notify-send (Linux desktop / WSLg with notification daemon)
-        if shutil.which("notify-send"):
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    "notify-send", title, message,
-                    "--app-name=conv",
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-                await proc.wait()
-                logger.info(f"Notification via notify-send: {title}")
-                return
-            except Exception:
-                logger.debug("notify-send failed, trying next method")
-
-        # Strategy 2: Windows native toast via PowerShell WinRT API (non-disruptive, works in WSL)
         if shutil.which("powershell.exe"):
             try:
                 safe_title = title.replace("'", "''")
@@ -149,28 +134,10 @@ class ReminderService:
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 await proc.wait()
-                logger.info(f"Notification via Windows toast: {title}")
+                logger.info(f"Windows toast: {title}")
                 return
-            except Exception:
-                logger.debug("Windows toast failed, trying next method")
-
-        # Strategy 3: zenity info dialog (last resort)
-        if shutil.which("zenity"):
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    "zenity", "--info",
-                    f"--title={title}",
-                    f"--text={message}",
-                    "--timeout=5",
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                )
-                await proc.wait()
-                logger.info(f"Notification via zenity: {title}")
-                return
-            except Exception:
-                logger.debug("zenity notification failed")
-
-        logger.warning("No notification system available")
+            except Exception as e:
+                logger.warning(f"Windows toast failed: {e}")
 
 
 # Singleton
