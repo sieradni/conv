@@ -30,8 +30,8 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 6. run_command (requires user approval) — Args: {"command": "terminal command"}
 
 **Todo list:**
-7. update_todo (no approval needed) — Args: {"key": "todo_items" or "completed_items", "value": [...]}
-   Set items. Use "items" not "tasks" in your language.
+7. update_todo (no approval needed) — Args: {"key": "todo_items", "value": ["item1", "item2"]} or {"key": "completed_items", "value": [...]}
+    Set items. Use "items" not "tasks" in your language. key must be either "todo_items" or "completed_items".
 
 **Memory (flat linked-node graph with root markers):**
 8. set_current_node (read-only, no approval needed) — Args: {"node_id": "..."}
@@ -72,12 +72,12 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
     Call when you have fully completed the current goal. This signals completion and streams the summary to the user.
 
 **Reminders & Timers:**
-21. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
-    Create a reminder or timer. Use trigger_at (epoch seconds) or trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required in that case). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
+21. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000, "trigger_in": 600, "info": "...", "trigger_action": "continue|reset"}
+    Create a reminder or timer. Provide trigger_at (epoch seconds) OR trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required if trigger_action is set). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
     Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
 22. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
-23. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
+23. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0, "info": "optional", "trigger_action": "continue|reset"}
     Modify an existing reminder. Only provided fields are updated.
 24. delete_reminder (no approval needed) — Args: {"id": "..."}
     Delete a reminder by its id.
@@ -138,17 +138,20 @@ Available tools:
    Returns content with line numbers. scope="framework" reads live source files.
 2. write_file (requires user approval) — Args: {"path": "relative/path", "content": "file content", "scope": "default"}
 
-**Surgical Edit Tools:**
+**Surgical Edit Tools (prefer these over write_file):**
 3. replace_lines (requires user approval) — Args: {"file_path": "...", "start_line": 10, "end_line": 20, "new_content": "...", "scope": "default"}
+    Replaces lines start_line through end_line (1-indexed, inclusive) with new_content. Use scope="framework" for self-modification (routes through shadow).
 4. insert_lines (requires user approval) — Args: {"file_path": "...", "line_number": 10, "new_content": "...", "scope": "default"}
+    Inserts new_content AFTER the specified line. Use line_number=0 to insert at the top. Use scope="framework" for self-modification.
 5. append_to_file (requires user approval) — Args: {"file_path": "...", "content": "...", "scope": "default"}
+    Appends content to the end of a file. Use scope="framework" for self-modification.
 
 **Command execution:**
 6. run_command (requires user approval) — Args: {"command": "terminal command"}
 
 **Todo list:**
-7. update_todo (no approval needed) — Args: {"key": "todo_items"|"completed_items", "value": [...]}
-   Set items. Use "items" not "tasks" in your language.
+7. update_todo (no approval needed) — Args: {"key": "todo_items", "value": ["item1", "item2"]} or {"key": "completed_items", "value": [...]}
+    Set items. Use "items" not "tasks" in your language. key must be either "todo_items" or "completed_items".
 
 **Memory (flat linked-node graph with root markers):**
 8. set_current_node (read-only, no approval needed) — Args: {"node_id": "..."}
@@ -184,12 +187,12 @@ Available tools:
     Update your memory management guidelines and log the change to the audit trail.
 
 **Reminders & Timers:**
-19. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
-    Create a reminder or timer. Use trigger_at (epoch seconds) or trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required in that case). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
+19. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000, "trigger_in": 600, "info": "...", "trigger_action": "continue|reset"}
+    Create a reminder or timer. Provide trigger_at (epoch seconds) OR trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required if trigger_action is set). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
     Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
 20. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
-21. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
+21. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0, "info": "optional", "trigger_action": "continue|reset"}
     Modify an existing reminder. Only provided fields are updated.
 22. delete_reminder (no approval needed) — Args: {"id": "..."}
     Delete a reminder by its id.
