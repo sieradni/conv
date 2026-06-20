@@ -35,11 +35,11 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 
 **Memory (flat linked-node graph with root markers):**
 8. set_current_node (read-only, no approval needed) — Args: {"node_id": "..."}
-   Set current memory focus. Pass "" to clear current node.
- 9. read_detail (read-only, no approval needed) — Args: {"key": "<node-id>"} or {"keys": "id1,id2,id3"}
-     Read full content, extra details, linked nodes, and timestamps of one or more memory nodes. Use "key" for a single node, "keys" (comma-separated) to read multiple at once.
-10. create_memory (no approval needed) — Args: {"content": "what to remember", "extraneous_detail": "optional often uneeded information", "linked_ids": "id1,id2", "is_root": false}
-    Create a new memory node. linked_ids and is_root optional.
+   Set current memory focus. Pass "" to clear current node. Current memories will show up in context.
+9. read_detail (read-only, no approval needed) — Args: {"key": "<node-id>"} or {"keys": "id1,id2,id3"}
+    Read full content, extra details, linked nodes, and timestamps of one or more memory nodes. Use "key" for a single node, "keys" (comma-separated) to read multiple at once.
+10. create_memory (no approval needed) — Args: {"content": "what to remember", "extraneous_detail": "optional often unneeded information", "linked_ids": "id1,id2", "is_root": false}
+    Create a new memory node. linked_ids and is_root optional. Do not include brackeets for ids. Root memories will always be included in context. There can be multiple root memories.
 11. update_memory (no approval needed) — Args: {"id": "...", "content": "new content", "extraneous_detail": "new extraneous detail", "linked_ids": "id1,id2"}
     Modify existing memory. Only provided fields are updated.
 
@@ -127,11 +127,11 @@ Available tools:
 
 **Memory (flat linked-node graph with root markers):**
 8. set_current_node (read-only, no approval needed) — Args: {"node_id": "..."}
-   Set current memory focus. Pass "" to clear current node.
- 9. read_detail (read-only, no approval needed) — Args: {"key": "<node-id>"} or {"keys": "id1,id2,id3"}
-     Read full content, extra details, linked nodes, and timestamps of one or more memory nodes. Use "key" for a single node, "keys" (comma-separated) to read multiple at once.
-10. create_memory (no approval needed) — Args: {"content": "what to remember", "extraneous_detail": "optional, often uneeded information that may be useful", "linked_ids": "id1,id2", "is_root": false}
-    Create a new memory node. linked_ids and is_root optional.
+   Set current memory focus. Pass "" to clear current node. Current memories will show up in context.
+9. read_detail (read-only, no approval needed) — Args: {"key": "<node-id>"} or {"keys": "id1,id2,id3"}
+    Read full content, extra details, linked nodes, and timestamps of one or more memory nodes. Use "key" for a single node, "keys" (comma-separated) to read multiple at once.
+10. create_memory (no approval needed) — Args: {"content": "what to remember", "extraneous_detail": "optional often unneeded information", "linked_ids": "id1,id2", "is_root": false}
+    Create a new memory node. linked_ids and is_root optional. Do not include brackeets for ids. Root memories will always be included in context. There can be multiple root memories.
 11. update_memory (no approval needed) — Args: {"id": "...", "content": "new content", "extraneous_detail": "new extraneous detail", "linked_ids": "id1,id2"}
     Modify existing memory. Only provided fields are updated.
 
