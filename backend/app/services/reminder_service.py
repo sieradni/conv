@@ -1,6 +1,7 @@
 """Reminder service — persistent storage, CRUD, background checker, desktop notifications."""
 
 import asyncio
+import base64
 import json
 import logging
 import shutil
@@ -127,22 +128,31 @@ class ReminderService:
             except Exception:
                 logger.debug("notify-send failed, trying next method")
 
-        # Strategy 2: Windows popup via PowerShell (works in WSL)
+        # Strategy 2: Windows native toast via PowerShell WinRT API (non-disruptive, works in WSL)
         if shutil.which("powershell.exe"):
             try:
                 safe_title = title.replace("'", "''")
                 safe_msg = message.replace("'", "''")
+                ps_script = (
+                    'Add-Type -AssemblyName System.Runtime.WindowsRuntime;'
+                    '[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;'
+                    '$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);'
+                    '$n = $t.GetElementsByTagName("text");'
+                    f'$n.Item(0).InnerText = \'{safe_title}\';'
+                    f'$n.Item(1).InnerText = \'{safe_msg}\';'
+                    '$toast = New-Object Windows.UI.Notifications.ToastNotification($t);'
+                    '[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("conv").Show($toast)'
+                )
+                encoded = base64.b64encode(ps_script.encode("utf-16-le")).decode("ascii")
                 proc = await asyncio.create_subprocess_exec(
-                    "powershell.exe",
-                    "-Command",
-                    f"(New-Object -ComObject WScript.Shell).Popup('{safe_msg}',5,'{safe_title}',0) | Out-Null",
+                    "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
                 await proc.wait()
-                logger.info(f"Notification via PowerShell popup: {title}")
+                logger.info(f"Notification via Windows toast: {title}")
                 return
             except Exception:
-                logger.debug("PowerShell notification failed, trying next method")
+                logger.debug("Windows toast failed, trying next method")
 
         # Strategy 3: zenity info dialog (last resort)
         if shutil.which("zenity"):
@@ -160,7 +170,7 @@ class ReminderService:
             except Exception:
                 logger.debug("zenity notification failed")
 
-        logger.warning("No notification system available (install libnotify-bin for desktop notifications)")
+        logger.warning("No notification system available")
 
 
 # Singleton
