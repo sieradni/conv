@@ -337,11 +337,13 @@ async def build_context_messages(
 
     messages = [{"role": "system", "content": full_system}]
 
-    # Add history (skip for sleep mode)
+    # Add history (in sleep mode, only include messages since sleep started — fresh session)
     history: list[dict] = []
-    if not sleep_mode:
+    if sleep_mode:
+        history = conv.chat_history[conv.sleep_history_start:]
+    else:
         history = conv.get_context_messages()
-        messages.extend(history)
+    messages.extend(history)
 
     # Add user message (avoid duplicate if already the last entry in history)
     if sleep_mode and not user_message.strip():

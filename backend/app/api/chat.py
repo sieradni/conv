@@ -162,6 +162,7 @@ async def sleep_start(payload: SleepStartPayload):
     """Start sleep-flow optimization via the chat ReAct loop."""
     conv = get_conversation()
     conv.sleep_mode = True
+    conv.sleep_history_start = len(conv.chat_history)
 
     tasks = get_active_chat_tasks()
     existing = tasks.get(conv.session_id)

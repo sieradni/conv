@@ -6,9 +6,9 @@
       "extraneous_detail": "User name: Sieradni",
       "linked_ids": [],
       "is_root": true,
-      "access_count": 0,
+      "access_count": 2,
       "created_at": 1781686020.5129101,
-      "updated_at": 1781714423.9197931
+      "updated_at": 1781920803.1618636
     },
     {
       "id": "cde9f0c9",
@@ -25,12 +25,14 @@
       "content": "Memory Architecture & Communication Rules",
       "extraneous_detail": "1. Ambiguity Handling: If a user instruction is unclear or ambiguous, always ask for clarification before proceeding. Do not assume intent.\n2. Content Priority: Important information must be placed in the content.\n3. Detail Visibility: Ensure that memory details are accessible/displayed to the user when relevant (as per user request).\n4. Memory Management: Consolidate overlapping information and maintain a clean, linked graph structure.",
       "linked_ids": [
-        "cde9f0c9"
+        "cde9f0c9",
+        "8940e07d",
+        "8ac29121"
       ],
       "is_root": true,
       "access_count": 0,
       "created_at": 1781688805.666463,
-      "updated_at": 1781691397.4624178
+      "updated_at": 1781920587.3272064
     },
     {
       "id": "8940e07d",
@@ -41,6 +43,18 @@
       "access_count": 0,
       "created_at": 1781740797.4908047,
       "updated_at": 1781740797.490805
+    },
+    {
+      "id": "8ac29121",
+      "content": "Extra details are not exposed by default to the user. I must evaluate whether extra details contain critical information (like rules, constraints, or mandatory instructions) that require constant accessibility to ensure they are followed. If a piece of information is a mandatory rule or a persistent constraint, it should be placed in the main content rather than the extra details to prevent it from being missed or ignored due to the extra step required to access it.",
+      "extraneous_detail": "User provided this guidance to ensure that critical rules are not overlooked simply because they are tucked away in extra details.",
+      "linked_ids": [
+        "[a09347b7]"
+      ],
+      "is_root": false,
+      "access_count": 0,
+      "created_at": 1781920217.8577657,
+      "updated_at": 1781920217.8577662
     }
   ],
   "current_node_id": "a09347b7",

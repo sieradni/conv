@@ -56,12 +56,15 @@ def memory_graph(memory_graph_path):
 
 
 @pytest.fixture(autouse=True)
-def clean_state():
+def clean_state(tmp_workspace, monkeypatch):
     from app.memory_graph import set_memory_graph
     set_memory_graph(None)
     from app.core.events import manager as core_manager
     core_manager._global.clear()
     core_manager._by_session.clear()
+    session_path = tmp_workspace / "session.json"
+    monkeypatch.setattr("app.core.session.SESSION_FILE", session_path)
+    monkeypatch.setattr("app.core.config.SESSION_FILE", session_path)
     from app.core.session import reset_conversation
     reset_conversation()
     yield

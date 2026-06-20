@@ -14,12 +14,23 @@ def set_current_node(node_id: str = "") -> str:
     return f"Node '{node_id}' not found."
 
 
-def read_detail(key: str, sleep_mode: bool = False) -> str:
+def read_detail(key: str = "", keys: str = "", sleep_mode: bool = False) -> str:
     graph = get_memory_graph()
-    detail = graph.read_detail(key, sleep_mode=sleep_mode)
-    if detail is not None:
-        return f"Detail for node {key}:\n{detail}"
-    return f"Node '{key}' not found."
+    # If `keys` is provided (comma-separated), read multiple nodes
+    id_list = [x.strip() for x in keys.split(",") if x.strip()] if keys else []
+    if not id_list and key:
+        id_list = [key]
+    if not id_list:
+        return "No key provided. Pass 'key' for a single node or 'keys' (comma-separated) for multiple."
+
+    results = []
+    for nid in id_list:
+        detail = graph.read_detail(nid, sleep_mode=sleep_mode)
+        if detail is not None:
+            results.append(f"--- [{nid}] ---\n{detail}")
+        else:
+            results.append(f"--- [{nid}] ---\nNode not found.")
+    return "\n\n".join(results)
 
 
 def create_memory(
@@ -36,7 +47,7 @@ def create_memory(
 
 
 def update_memory(
-    node_id: str, content: str = "", extraneous_detail: str = "",
+    id: str, content: str = "", extraneous_detail: str = "",
     linked_ids: str = "",
 ) -> str:
     graph = get_memory_graph()
@@ -47,10 +58,10 @@ def update_memory(
         kwargs["extraneous_detail"] = extraneous_detail
     if linked_ids:
         kwargs["linked_ids"] = [x.strip() for x in linked_ids.split(",") if x.strip()]
-    node = graph.update_memory(node_id, **kwargs)
+    node = graph.update_memory(node_id=id, **kwargs)
     if node:
         return f"Updated memory [{node.id}] {node.content}"
-    return f"Node '{node_id}' not found."
+    return f"Node '{id}' not found."
 
 
 def refine_memory_methodology(new_rules: str, reflection: str) -> str:

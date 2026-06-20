@@ -66,7 +66,7 @@ class TestMemoryTools:
         from app.tools.memory_tools import update_memory
         self.graph.update_memory.return_value = MagicMock(id="abc", content="Updated")
         result = update_memory("abc", content="Updated")
-        self.graph.update_memory.assert_called_once_with("abc", content="Updated")
+        self.graph.update_memory.assert_called_once_with(node_id="abc", content="Updated")
 
     def test_update_memory_not_found(self):
         from app.tools.memory_tools import update_memory

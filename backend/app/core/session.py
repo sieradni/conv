@@ -31,6 +31,7 @@ class Conversation:
         self.stop_requested: bool = False
         self.pause_requested: bool = False
         self.sleep_mode: bool = False
+        self.sleep_history_start: int = 0
         self.thinking_level: str = ""  # "" = model default, or "off"/"low"/"medium"/"high"
         self._resume_event: Any = None
         self.user_response_queue: asyncio.Queue = asyncio.Queue()

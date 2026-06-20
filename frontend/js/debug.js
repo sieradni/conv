@@ -30,12 +30,16 @@ function renderApiLog() {
   const el = $('dbgview-api-log');
   if (!el) return;
 
-  // Save expanded state
+  // Save expanded state + scroll positions
   const expanded = new Set();
+  const scrollPos = {};
   el.querySelectorAll('[id^="api-"]').forEach(d => {
-    if (!d.classList.contains('hidden')) {
-      const idx = parseInt(d.id.replace('api-', ''), 10);
-      if (!isNaN(idx)) expanded.add(idx);
+    const idx = parseInt(d.id.replace('api-', ''), 10);
+    if (!isNaN(idx)) {
+      if (!d.classList.contains('hidden')) expanded.add(idx);
+      d.querySelectorAll('[class*="overflow-y-auto"]').forEach((c, ci) => {
+        scrollPos[`api-${idx}-${ci}`] = c.scrollTop;
+      });
     }
   });
 
@@ -77,6 +81,20 @@ function renderApiLog() {
       ${right}
     </div>
   </div>`;
+
+  // Restore scroll positions
+  requestAnimationFrame(() => {
+    Object.keys(scrollPos).forEach(k => {
+      const parts = k.split('-');
+      const elId = `${parts[0]}-${parts[1]}`;
+      const ci = parseInt(parts[2], 10);
+      const container = document.getElementById(elId);
+      if (container) {
+        const children = container.querySelectorAll('[class*="overflow-y-auto"]');
+        if (children[ci]) children[ci].scrollTop = scrollPos[k];
+      }
+    });
+  });
 }
 
 /* ── Context Inspector ────────────────────────────────────────── */
@@ -167,12 +185,16 @@ function renderRawEvents() {
   const el = $('dbgview-events');
   if (!el) return;
 
-  // Save expanded state
+  // Save expanded state + scroll positions
   const expanded = new Set();
+  const scrollPos = {};
   el.querySelectorAll('[id^="evt-"]').forEach(d => {
-    if (!d.classList.contains('hidden')) {
-      const idx = parseInt(d.id.replace('evt-', ''), 10);
-      if (!isNaN(idx)) expanded.add(idx);
+    const idx = parseInt(d.id.replace('evt-', ''), 10);
+    if (!isNaN(idx)) {
+      if (!d.classList.contains('hidden')) expanded.add(idx);
+      d.querySelectorAll('[class*="overflow-y-auto"]').forEach((c, ci) => {
+        scrollPos[`evt-${idx}-${ci}`] = c.scrollTop;
+      });
     }
   });
 
@@ -228,4 +250,18 @@ function renderRawEvents() {
     }
   }
   el.innerHTML = html;
+
+  // Restore scroll positions
+  requestAnimationFrame(() => {
+    Object.keys(scrollPos).forEach(k => {
+      const parts = k.split('-');
+      const elId = `${parts[0]}-${parts[1]}`;
+      const ci = parseInt(parts[2], 10);
+      const container = document.getElementById(elId);
+      if (container) {
+        const children = container.querySelectorAll('[class*="overflow-y-auto"]');
+        if (children[ci]) children[ci].scrollTop = scrollPos[k];
+      }
+    });
+  });
 }
