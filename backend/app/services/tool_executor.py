@@ -75,6 +75,7 @@ def _register_defaults(executor: ToolExecutor):
     executor.register("refine_memory_methodology", memory_tools.refine_memory_methodology)
 
     # System
+    executor.register("get_current_time", system_tools.get_current_time)
     executor.register("update_todo", system_tools.update_todo)
     executor.register("read_user_notes", system_tools.read_user_notes)
     executor.register("write_user_notes", system_tools.write_user_notes)

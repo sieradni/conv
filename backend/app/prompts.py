@@ -63,29 +63,33 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 18. ask_user — Args: {"question": "..."}
     Pause and ask the user a question. The loop waits for their answer.
 
+**Time:**
+19. get_current_time (no approval needed) — Args: {}
+    Returns the current local time, UTC time, and Unix timestamp.
+
 **Task completion:**
-19. finish_task — Args: {"summary": "brief summary"}
+20. finish_task — Args: {"summary": "brief summary"}
     Call when you have fully completed the current goal. This signals completion and streams the summary to the user.
 
 **Reminders & Timers:**
-20. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
+21. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
     Create a reminder or timer. Use trigger_at (epoch seconds) or trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required in that case). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
     Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
-21. list_reminders (no approval needed) — Args: {}
+22. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
-22. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
+23. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
     Modify an existing reminder. Only provided fields are updated.
-23. delete_reminder (no approval needed) — Args: {"id": "..."}
+24. delete_reminder (no approval needed) — Args: {"id": "..."}
     Delete a reminder by its id.
 
 **Stopwatch:**
-24. stopwatch_start (no approval needed) — Args: {}
+25. stopwatch_start (no approval needed) — Args: {}
     Start the stopwatch from its current position.
-25. stopwatch_stop (no approval needed) — Args: {}
+26. stopwatch_stop (no approval needed) — Args: {}
     Stop the stopwatch and report the elapsed time.
-26. stopwatch_check (no approval needed) — Args: {}
+27. stopwatch_check (no approval needed) — Args: {}
     Check the current stopwatch time without changing it.
-27. stopwatch_reset (no approval needed) — Args: {}
+28. stopwatch_reset (no approval needed) — Args: {}
     Reset the stopwatch to zero.
 
 How to call a tool:
@@ -168,32 +172,36 @@ Available tools:
 15. ask_user — Args: {"question": "..."}
     Pause and ask the user a question. The loop waits for their answer.
 
+**Time:**
+16. get_current_time (no approval needed) — Args: {}
+    Returns the current local time, UTC time, and Unix timestamp.
+
 **Task completion:**
-16. finish_task — Call when memory consolidation is complete. After calling it, you will reflect on your memory consolidation.
+17. finish_task — Call when memory consolidation is complete. After calling it, you will reflect on your memory consolidation.
 
 **Memory methodology:**
-17. refine_memory_methodology (no approval needed) — Args: {"new_rules": "markdown rules", "reflection": "why"}
+18. refine_memory_methodology (no approval needed) — Args: {"new_rules": "markdown rules", "reflection": "why"}
     Update your memory management guidelines and log the change to the audit trail.
 
 **Reminders & Timers:**
-18. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
+19. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
     Create a reminder or timer. Use trigger_at (epoch seconds) or trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required in that case). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
     Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
-19. list_reminders (no approval needed) — Args: {}
+20. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
-20. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
+21. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
     Modify an existing reminder. Only provided fields are updated.
-21. delete_reminder (no approval needed) — Args: {"id": "..."}
+22. delete_reminder (no approval needed) — Args: {"id": "..."}
     Delete a reminder by its id.
 
 **Stopwatch:**
-22. stopwatch_start (no approval needed) — Args: {}
+23. stopwatch_start (no approval needed) — Args: {}
     Start the stopwatch from its current position.
-23. stopwatch_stop (no approval needed) — Args: {}
+24. stopwatch_stop (no approval needed) — Args: {}
     Stop the stopwatch and report the elapsed time.
-24. stopwatch_check (no approval needed) — Args: {}
+25. stopwatch_check (no approval needed) — Args: {}
     Check the current stopwatch time without changing it.
-25. stopwatch_reset (no approval needed) — Args: {}
+26. stopwatch_reset (no approval needed) — Args: {}
     Reset the stopwatch to zero.
 
 How to call a tool:

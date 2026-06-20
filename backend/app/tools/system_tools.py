@@ -49,6 +49,17 @@ def ask_user(question: str) -> str:
     return f"[ASK_USER:{question}]"
 
 
+# ── Time ────────────────────────────────────────────────────────────
+
+
+def get_current_time() -> str:
+    import time, datetime
+    now = time.time()
+    local = datetime.datetime.fromtimestamp(now)
+    utc = datetime.datetime.fromtimestamp(now, tz=datetime.timezone.utc)
+    return f"Current time:\n  Local: {local.strftime('%Y-%m-%d %H:%M:%S %Z')}\n  UTC:   {utc.strftime('%Y-%m-%d %H:%M:%S UTC')}\n  Unix:  {int(now)}"
+
+
 # ── Task completion ────────────────────────────────────────────────
 
 
