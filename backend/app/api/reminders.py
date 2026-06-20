@@ -15,11 +15,16 @@ router = APIRouter(tags=["reminders"])
 # ── Schemas ─────────────────────────────────────────────────────────
 
 
+VALID_TRIGGER_ACTIONS = ("", "continue", "reset")
+
+
 class CreateReminderPayload(BaseModel):
     title: str
     message: str
     trigger_at: Optional[float] = None
     trigger_in: Optional[float] = None
+    info: str = ""
+    trigger_action: str = ""
 
 
 class UpdateReminderPayload(BaseModel):
@@ -27,16 +32,8 @@ class UpdateReminderPayload(BaseModel):
     message: Optional[str] = None
     trigger_at: Optional[float] = None
     active: Optional[bool] = None
-
-
-class ReminderResponse(BaseModel):
-    id: str
-    title: str
-    message: str
-    trigger_at: float
-    created_at: float
-    active: bool
-    fired: bool
+    info: Optional[str] = None
+    trigger_action: Optional[str] = None
 
 
 # ── Endpoints ───────────────────────────────────────────────────────
@@ -57,8 +54,10 @@ async def create_reminder(payload: CreateReminderPayload):
         trigger_at = payload.trigger_at
     else:
         raise HTTPException(status_code=422, detail="Provide trigger_at or trigger_in")
+    if payload.trigger_action and payload.trigger_action not in VALID_TRIGGER_ACTIONS:
+        raise HTTPException(status_code=422, detail=f"trigger_action must be one of {VALID_TRIGGER_ACTIONS}")
     svc = get_reminder_service()
-    reminder = svc.create(title=payload.title, message=payload.message, trigger_at=trigger_at)
+    reminder = svc.create(title=payload.title, message=payload.message, trigger_at=trigger_at, info=payload.info, trigger_action=payload.trigger_action)
     return reminder
 
 
@@ -75,10 +74,12 @@ async def get_reminder(reminder_id: str):
 async def update_reminder(reminder_id: str, payload: UpdateReminderPayload):
     svc = get_reminder_service()
     kwargs = {}
-    for key in ("title", "message", "trigger_at", "active"):
+    for key in ("title", "message", "trigger_at", "active", "info", "trigger_action"):
         val = getattr(payload, key, None)
         if val is not None:
             kwargs[key] = val
+    if "trigger_action" in kwargs and kwargs["trigger_action"] not in VALID_TRIGGER_ACTIONS:
+        raise HTTPException(status_code=422, detail=f"trigger_action must be one of {VALID_TRIGGER_ACTIONS}")
     if not kwargs:
         raise HTTPException(status_code=422, detail="Nothing to update")
     result = svc.update(reminder_id, **kwargs)

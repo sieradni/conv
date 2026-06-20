@@ -748,6 +748,9 @@ function handleMessage(msg) {
       {
         const r = msg.reminder;
         addMessage(`\u23f0 reminder: ${r.title}${r.message ? ' \u2014 ' + r.message : ''}`, 'amber-400');
+        if (r.trigger_action && r.info) {
+          addMessage(`agent triggered (${r.trigger_action}): ${r.info}`, 'indigo-400');
+        }
         loadReminders();
       }
       break;

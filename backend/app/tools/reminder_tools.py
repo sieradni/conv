@@ -4,14 +4,17 @@ import time
 from app.services.reminder_service import get_reminder_service
 
 
-def create_reminder(title: str, message: str, trigger_at: float | None = None, trigger_in: float | None = None) -> str:
+def create_reminder(title: str, message: str, trigger_at: float | None = None, trigger_in: float | None = None, info: str = "", trigger_action: str = "") -> str:
     svc = get_reminder_service()
     if trigger_at is None and trigger_in is not None:
         trigger_at = time.time() + trigger_in
     if trigger_at is None:
         return "Error: provide either trigger_at (epoch) or trigger_in (seconds from now)"
-    reminder = svc.create(title=title, message=message, trigger_at=trigger_at)
-    return f"Created reminder {reminder['id']}: {title}"
+    reminder = svc.create(title=title, message=message, trigger_at=trigger_at, info=info, trigger_action=trigger_action)
+    parts = [f"Created reminder {reminder['id']}: {title}"]
+    if trigger_action:
+        parts.append(f"(will trigger agent: {trigger_action})")
+    return " ".join(parts)
 
 
 def list_reminders() -> str:
@@ -22,19 +25,19 @@ def list_reminders() -> str:
     lines = ["Reminders:"]
     for r in reminders:
         status = "🔔 active" if r["active"] and not r["fired"] else "✅ fired" if r["fired"] else "⏸ inactive"
-        lines.append(f"  [{r['id']}] {r['title']} — {r['message'][:60]} — {status}")
+        tag = ""
+        if r.get("trigger_action"):
+            tag = f" → agent:{r['trigger_action']}"
+        lines.append(f"  [{r['id']}] {r['title']} — {r['message'][:60]}{tag} — {status}")
     return "\n".join(lines)
 
 
-def update_reminder(id: str, title: str | None = None, message: str | None = None, trigger_at: float | None = None) -> str:
+def update_reminder(id: str, title: str | None = None, message: str | None = None, trigger_at: float | None = None, info: str | None = None, trigger_action: str | None = None) -> str:
     svc = get_reminder_service()
     kwargs = {}
-    if title is not None:
-        kwargs["title"] = title
-    if message is not None:
-        kwargs["message"] = message
-    if trigger_at is not None:
-        kwargs["trigger_at"] = trigger_at
+    for k, v in [("title", title), ("message", message), ("trigger_at", trigger_at), ("info", info), ("trigger_action", trigger_action)]:
+        if v is not None:
+            kwargs[k] = v
     if not kwargs:
         return "Error: nothing to update"
     result = svc.update(id, **kwargs)

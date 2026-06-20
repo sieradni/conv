@@ -69,7 +69,8 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 
 **Reminders & Timers:**
 20. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
-    Create a reminder or timer. Provide trigger_at (epoch seconds) or trigger_in (seconds from now).
+    Create a reminder or timer. Use trigger_at (epoch seconds) or trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required in that case). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
+    Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
 21. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
 22. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}
@@ -176,7 +177,8 @@ Available tools:
 
 **Reminders & Timers:**
 18. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000}
-    Create a reminder or timer. Provide trigger_at (epoch seconds) or trigger_in (seconds from now).
+    Create a reminder or timer. Use trigger_at (epoch seconds) or trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required in that case). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
+    Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
 19. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
 20. update_reminder (no approval needed) — Args: {"id": "...", "title": "optional", "message": "optional", "trigger_at": 0}

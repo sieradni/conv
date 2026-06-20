@@ -67,14 +67,22 @@ function renderReminders(reminders) {
     const timeStr = fmtReminderTime(r.trigger_at);
     const icon = r.trigger_at > now + 86400 ? '🔔' : '⏰';
 
+    let actionBadge = '';
+    if (r.trigger_action) {
+      const cls = r.trigger_action === 'reset' ? 'bg-rose-600/20 text-rose-400 border-rose-600/30' : 'bg-indigo-600/20 text-indigo-400 border-indigo-600/30';
+      actionBadge = `<span class="badge ${cls}">\u2192 ${r.trigger_action}</span>`;
+    }
+
     return `<div class="flex items-start gap-2.5 bg-black/30 border border-white/5 rounded-lg px-3 py-2 slide-up">
       <span class="mt-0.5 text-xs">${icon}</span>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 mb-0.5">
           <span class="text-[11px] font-semibold text-slate-200 truncate">${escapeHtml(r.title)}</span>
           <span class="badge ${statusClass}">${statusBadge}</span>
+          ${actionBadge}
         </div>
         <p class="text-[10px] text-slate-500 leading-relaxed truncate">${escapeHtml(r.message)}</p>
+        ${r.info ? `<p class="text-[10px] text-amber-400/70 leading-relaxed truncate">\u2139 ${escapeHtml(r.info)}</p>` : ''}
         <span class="text-[9px] text-slate-600 font-mono">${timeStr}</span>
       </div>
       <button onclick="deleteReminderUI('${r.id}')" class="shrink-0 px-1.5 py-0.5 rounded text-[10px] text-slate-600 hover:text-rose-400 hover:bg-rose-600/10 transition" title="Delete reminder">&times;</button>
@@ -110,6 +118,8 @@ async function createReminderUI() {
   const title = $('reminder-title-input');
   const message = $('reminder-msg-input');
   const timeEl = $('reminder-time-input');
+  const infoEl = $('reminder-info-input');
+  const actionEl = $('reminder-action-select');
   if (!title || !message || !timeEl) return;
   const t = title.value.trim();
   const m = message.value.trim();
@@ -117,16 +127,21 @@ async function createReminderUI() {
   if (!t || !dt) return;
   const trigger_at = new Date(dt).getTime() / 1000;
   if (isNaN(trigger_at) || trigger_at <= Date.now() / 1000) return;
+  const body = { title: t, message: m || t, trigger_at };
+  if (infoEl && infoEl.value.trim()) body.info = infoEl.value.trim();
+  if (actionEl && actionEl.value) body.trigger_action = actionEl.value;
   try {
     const r = await fetch('/api/reminders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: t, message: m || t, trigger_at }),
+      body: JSON.stringify(body),
     });
     if (r.ok) {
       title.value = '';
       message.value = '';
       timeEl.value = '';
+      if (infoEl) infoEl.value = '';
+      if (actionEl) actionEl.value = '';
       loadReminders();
     }
   } catch (_) {}

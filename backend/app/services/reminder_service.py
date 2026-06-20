@@ -52,7 +52,7 @@ class ReminderService:
 
     # ── CRUD ───────────────────────────────────────────────────────
 
-    def create(self, title: str, message: str, trigger_at: float) -> dict:
+    def create(self, title: str, message: str, trigger_at: float, info: str = "", trigger_action: str = "") -> dict:
         reminder = {
             "id": uuid.uuid4().hex[:12],
             "title": title,
@@ -61,6 +61,8 @@ class ReminderService:
             "created_at": time.time(),
             "active": True,
             "fired": False,
+            "info": info,
+            "trigger_action": trigger_action,
         }
         self._reminders.append(reminder)
         self._save()
@@ -79,7 +81,7 @@ class ReminderService:
         reminder = self.get(reminder_id)
         if reminder is None:
             return None
-        for key in ("title", "message", "trigger_at", "active"):
+        for key in ("title", "message", "trigger_at", "active", "info", "trigger_action"):
             if key in kwargs:
                 reminder[key] = kwargs[key]
         reminder["fired"] = False
@@ -105,10 +107,35 @@ class ReminderService:
                     reminder["fired"] = True
                     self._save()
                     await self._fire_notification(reminder)
+                    await self._trigger_agent(reminder)
                     await manager.broadcast({
                         "type": "reminder_fired",
                         "reminder": reminder,
                     })
+
+    async def _trigger_agent(self, reminder: dict):
+        action = reminder.get("trigger_action", "")
+        info = reminder.get("info", "")
+        if not action or not info:
+            return
+        from app.core.session import get_conversation, reset_conversation
+        from app.services.agent_service import run_agent_loop, get_active_chat_tasks
+        if action == "reset":
+            reset_conversation()
+        conv = get_conversation()
+        session_id = conv.session_id
+        msg = f"[Reminder: {reminder['title']}] {info}"
+        conv.add_message("user", msg)
+        tasks = get_active_chat_tasks()
+        existing = tasks.get(session_id)
+        if existing and not existing.done():
+            existing.cancel()
+        task = asyncio.create_task(
+            run_agent_loop(session_id, msg, sleep_mode=False)
+        )
+        task.add_done_callback(lambda _: tasks.pop(session_id, None))
+        tasks[session_id] = task
+        logger.info(f"Agent triggered by reminder '{reminder['title']}' (action={action})")
 
     async def _fire_notification(self, reminder: dict):
         title = reminder["title"]

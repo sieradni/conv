@@ -1,58 +1,26 @@
 {
   "reminders": [
     {
-      "id": "027e6c5a0cbd",
-      "title": "test1",
-      "message": "1",
-      "trigger_at": 1781934660.0,
-      "created_at": 1781934650.5107348,
+      "id": "238eae3ce93b",
+      "title": "Reminder",
+      "message": "",
+      "trigger_at": 1781942557.6675932,
+      "created_at": 1781942547.6676273,
       "active": true,
-      "fired": true
+      "fired": true,
+      "info": "",
+      "trigger_action": ""
     },
     {
-      "id": "025e12381606",
-      "title": "30 Second Timer",
-      "message": "30 seconds have passed.",
-      "trigger_at": 1718000000,
-      "created_at": 1781934908.3070636,
+      "id": "3d6f177566af",
+      "title": "Check Up",
+      "message": "Checking in!",
+      "trigger_at": 1781942579.640723,
+      "created_at": 1781942569.6407452,
       "active": true,
-      "fired": true
-    },
-    {
-      "id": "9282ff89fdf2",
-      "title": "30 Second Timer",
-      "message": "30 seconds have passed.",
-      "trigger_at": 1781934947,
-      "created_at": 1781934921.760908,
-      "active": true,
-      "fired": true
-    },
-    {
-      "id": "daa55e6ec268",
-      "title": "Pop finished",
-      "message": "Pop finished",
-      "trigger_at": 1781935560.0,
-      "created_at": 1781935299.16729,
-      "active": true,
-      "fired": true
-    },
-    {
-      "id": "571e23f6a06f",
-      "title": "<|\"|>Reminder Set<|\"|>",
-      "message": null,
-      "trigger_at": 1781935658.8967216,
-      "created_at": 1781935628.8967664,
-      "active": true,
-      "fired": true
-    },
-    {
-      "id": "e6549821e1dc",
-      "title": "Timer",
-      "message": "Reminder in 10 seconds.",
-      "trigger_at": 1781935712.7689779,
-      "created_at": 1781935702.7690225,
-      "active": true,
-      "fired": true
+      "fired": true,
+      "info": "",
+      "trigger_action": ""
     }
   ]
 }
