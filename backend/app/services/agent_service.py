@@ -338,12 +338,15 @@ async def build_context_messages(
     messages = [{"role": "system", "content": full_system}]
 
     # Add history (skip for sleep mode)
+    history: list[dict] = []
     if not sleep_mode:
         history = conv.get_context_messages()
         messages.extend(history)
 
     # Add user message (avoid duplicate if already the last entry in history)
-    if user_message == "__CONTINUE__":
+    if sleep_mode and not user_message.strip():
+        messages.append({"role": "user", "content": "Begin memory consolidation work."})
+    elif user_message == "__CONTINUE__":
         if not history or history[-1]["role"] == "assistant":
             messages.append({"role": "user", "content": "Please continue."})
     elif not (history and history[-1]["role"] == "user" and history[-1].get("content") == user_message):
@@ -458,6 +461,14 @@ async def run_agent_loop(
         except asyncio.CancelledError:
             if content_buffer.strip():
                 _save_assistant(content_buffer)
+            return
+        except Exception as e:
+            logger.error(f"LM Studio call failed: {e}")
+            await manager.broadcast({
+                "type": "error", "session_id": session_id,
+                "message": f"LM Studio error: {e}",
+            })
+            await _chat_done(f"[Error: {e}]")
             return
 
         # If chat.end never arrived (e.g. stream error), use accumulated content

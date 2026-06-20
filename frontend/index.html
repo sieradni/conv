@@ -325,7 +325,7 @@ $('respond-btn').onclick = async () => {
 
   if (sleepMode) {
     showGenerating('sleep flow...');
-    addMessage(`sleep: ${text || '(continuing)'}`, 'amber-400');
+    if (text) addMessage(`sleep: ${text}`, 'amber-400');
     fetch('/api/chat/sleep-start', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message: text})
