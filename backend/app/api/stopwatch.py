@@ -1,4 +1,4 @@
-"""Stopwatch API endpoints."""
+"""Stopwatch API endpoints — start, stop, check, and set."""
 
 import logging
 
@@ -30,7 +30,11 @@ async def stop_stopwatch():
     return svc.stop()
 
 
-@router.post("/api/stopwatch/reset")
-async def reset_stopwatch():
+class SetStopwatchRequest(BaseModel):
+    seconds: float = 0.0
+
+
+@router.post("/api/stopwatch/set")
+async def set_stopwatch(body: SetStopwatchRequest):
     svc = get_stopwatch_service()
-    return svc.reset()
+    return svc.set(body.seconds)

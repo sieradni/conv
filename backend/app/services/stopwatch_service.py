@@ -71,8 +71,7 @@ class StopwatchService:
 
     def set(self, seconds: float) -> dict:
         self._elapsed = max(0.0, seconds)
-        if not self._running:
-            self._save()
+        self._save()
         return self.state()
 
     def state(self) -> dict:

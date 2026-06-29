@@ -76,10 +76,14 @@ async function stopStopwatch() {
   } catch (_) {}
 }
 
-async function resetStopwatch() {
+async function setStopwatch(seconds) {
   stopTick();
   try {
-    const r = await fetch('/api/stopwatch/reset', { method: 'POST' });
+    const r = await fetch('/api/stopwatch/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seconds: seconds })
+    });
     if (!r.ok) return;
     applyStopwatchState(await r.json());
   } catch (_) {}

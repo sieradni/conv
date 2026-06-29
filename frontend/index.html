@@ -177,14 +177,15 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider">stopwatch</h2>
           </div>
-          <span class="text-[9px] text-slate-600">(agent: stopwatch_start / stop / check / reset)</span>
+          <span class="text-[9px] text-slate-600">(agent: stopwatch_start / stop / check / set)</span>
         </div>
         <div class="flex-1 flex flex-col items-center justify-center gap-6 p-6">
           <div id="stopwatch-display" class="text-3xl font-mono font-bold text-slate-200 tabular-nums">00:00.0</div>
           <div class="flex gap-3">
             <button id="stopwatch-start" onclick="startStopwatch()" class="px-5 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 rounded-lg text-[11px] font-bold text-emerald-400 transition disabled:opacity-30">start</button>
             <button id="stopwatch-stop" onclick="stopStopwatch()" disabled class="px-5 py-2 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[11px] font-bold text-rose-400 transition disabled:opacity-30">stop</button>
-            <button id="stopwatch-reset" onclick="resetStopwatch()" class="px-5 py-2 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[11px] font-bold text-slate-400 transition">reset</button>
+            <input id="stopwatch-set-input" type="number" min="0" step="0.1" value="0" class="w-20 bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[11px] text-slate-200 font-mono text-center focus:outline-none focus:border-indigo-500/50">
+            <button id="stopwatch-set" onclick="setStopwatch(parseFloat($('stopwatch-set-input').value) || 0)" class="px-5 py-2 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[11px] font-bold text-slate-400 transition">set</button>
           </div>
         </div>
       </section>

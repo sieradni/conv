@@ -8,6 +8,7 @@ IMPORTANT RULES:
 - NEVER output the entire content of a file in your response. Use replace_lines / insert_lines / append_to_file for surgical edits instead.
 - Before editing a file, read it first with line numbers to identify exact locations.
 - When reading a file, the content is returned with line numbers (e.g. "     1: def foo():"). Reference these line numbers in your edit tool calls.
+- Never wrap string values in `<|"|>`, `<|tool_call|>`, or any pipe-bracket quoting — always use plain JSON strings.
 
 Available tools:
 
@@ -73,7 +74,7 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
 
 **Reminders & Timers:**
 21. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000, "trigger_in": 600, "info": "...", "trigger_action": "continue|reset"}
-    Create a reminder or timer. Provide trigger_at (epoch seconds) OR trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required if trigger_action is set). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
+    Create a reminder or timer. Provide trigger_at (epoch seconds) OR trigger_in (seconds from now). If the user asks you to do something at a future time (e.g. "ask me in 10 seconds"), set trigger_action to "continue" and put the instruction in info — you will be called back when it fires so you can act on the request. Without trigger_action, the reminder only shows a desktop notification and does NOT resume the agent.
     Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
 22. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
@@ -89,8 +90,8 @@ Values for scope: "default" (sandbox/), "framework" (live framework root — rea
     Stop the stopwatch and report the elapsed time.
 27. stopwatch_check (no approval needed) — Args: {}
     Check the current stopwatch time without changing it.
-28. stopwatch_reset (no approval needed) — Args: {}
-    Reset the stopwatch to zero.
+28. stopwatch_set (no approval needed) — Args: {"seconds": 0.0}
+    Set the stopwatch to a specific time in seconds.
 
 How to call a tool:
 - Put a JSON code block in your response like:
@@ -109,7 +110,8 @@ Rules:
 - If uncertain, use ask_user rather than guessing.
 - When you have fully completed the goal, call finish_task with a summary.
 - Never call finish_task prematurely — only when the goal is fully achieved.
-- Use memory tools to build and maintain a knowledge structure about the project."""
+- Be proactive about building memories for substantive project information, decisions, architecture, and user preferences — organize them in a linked tree structure with root markers for each major project.
+- Do NOT create memories for one-off requests, temporary instructions, or conversational context (e.g. "remind me in 10 seconds" is not a useful memory)."""
 
 SLEEP_SYSTEM_PROMPT = """You are an in memory consolidation and optimization. Your initial task is to consolidate and improve the memory structure.
 
@@ -131,6 +133,7 @@ Your goal is to:
 IMPORTANT RULES:
 - NEVER output the entire file content. Use replace_lines / insert_lines / append_to_file for surgical edits.
 - When reading a file, the content is returned with line numbers. Reference these in your edit calls.
+- Never wrap string values in `<|"|>`, `<|tool_call|>`, or any pipe-bracket quoting — always use plain JSON strings.
 
 Available tools:
 **File I/O (scope-aware):**
@@ -188,7 +191,7 @@ Available tools:
 
 **Reminders & Timers:**
 19. create_reminder (no approval needed) — Args: {"title": "...", "message": "...", "trigger_at": 1718000000, "trigger_in": 600, "info": "...", "trigger_action": "continue|reset"}
-    Create a reminder or timer. Provide trigger_at (epoch seconds) OR trigger_in (seconds from now). If you set trigger_action to "continue" or "reset", the agent will be called with the info field when the reminder fires (info is required if trigger_action is set). Use plain JSON strings for values, NOT `<|"|>` or any pipe-bracket quoting.
+    Create a reminder or timer. Provide trigger_at (epoch seconds) OR trigger_in (seconds from now). If the user asks you to do something at a future time (e.g. "ask me in 10 seconds"), set trigger_action to "continue" and put the instruction in info — you will be called back when it fires so you can act on the request. Without trigger_action, the reminder only shows a desktop notification and does NOT resume the agent.
     Example: {"title": "Check build", "message": "Build should be done", "trigger_in": 600, "info": "Check if the build finished and report errors.", "trigger_action": "continue"}
 20. list_reminders (no approval needed) — Args: {}
     List all reminders with their status.
@@ -204,8 +207,8 @@ Available tools:
     Stop the stopwatch and report the elapsed time.
 25. stopwatch_check (no approval needed) — Args: {}
     Check the current stopwatch time without changing it.
-26. stopwatch_reset (no approval needed) — Args: {}
-    Reset the stopwatch to zero.
+26. stopwatch_set (no approval needed) — Args: {"seconds": 0.0}
+    Set the stopwatch to a specific time in seconds.
 
 How to call a tool:
 - Put a JSON code block in your response like:

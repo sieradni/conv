@@ -98,4 +98,4 @@ def _register_defaults(executor: ToolExecutor):
     executor.register("stopwatch_start", stopwatch_tools.stopwatch_start)
     executor.register("stopwatch_stop", stopwatch_tools.stopwatch_stop)
     executor.register("stopwatch_check", stopwatch_tools.stopwatch_check)
-    executor.register("stopwatch_reset", stopwatch_tools.stopwatch_reset)
+    executor.register("stopwatch_set", stopwatch_tools.stopwatch_set)

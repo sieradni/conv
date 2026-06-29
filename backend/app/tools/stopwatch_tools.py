@@ -1,4 +1,4 @@
-"""Stopwatch tools — agent can start, stop, check, and reset the stopwatch."""
+"""Stopwatch tools — agent can start, stop, check, and set the stopwatch."""
 
 from app.services.stopwatch_service import get_stopwatch_service
 
@@ -35,7 +35,7 @@ def stopwatch_check() -> str:
     return f"Stopwatch: {_fmt(elapsed)} ({status})."
 
 
-def stopwatch_reset() -> str:
+def stopwatch_set(seconds: float = 0.0) -> str:
     svc = get_stopwatch_service()
-    svc.reset()
-    return "Stopwatch reset to 0."
+    svc.set(seconds)
+    return f"Stopwatch set to {_fmt(seconds)}."
