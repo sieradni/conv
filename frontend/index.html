@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>conv</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div id="app" class="h-dvh flex flex-col" style="min-height:0">
+
+  <!-- Header -->
+  <header class="glass shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/5 flex-nowrap overflow-x-auto">
+    <div class="flex items-center gap-2 shrink-0 mr-2">
+      <span class="text-lg font-bold tracking-tight hidden sm:inline">conv</span>
+    </div>
+    <nav class="flex items-center gap-0.5 bg-black/30 rounded-lg p-0.5 shrink-0">
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-view="console">chat</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="memory">memory</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="notes">notes</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="models">models</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="debug">debug</button>
+      <button class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-view="settings">settings</button>
+      <a class="nav-tab px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-md text-slate-600 hover:text-slate-400 transition" href="https://protean.cobia-rudd.ts.net:3923">party↪ </a>
+    </nav>
+    <div class="flex-1 min-w-[8px]"></div>
+    <div class="flex items-center gap-2 shrink-0">
+      <span id="approval-mode-badge" class="badge cursor-pointer bg-amber-500/10 text-amber-400 border-amber-500/30" title="click to cycle">WAIT</span>
+      <span id="lm-badge" class="badge bg-slate-800 text-slate-500 border border-white/5" title="LM Studio">LM &#x25CB;</span>
+      <span id="session-label" class="text-[9px] font-mono text-slate-600 bg-white/5 px-1.5 py-0.5 rounded hidden sm:inline" title="session">--</span>
+      <div id="connection-badge" class="badge bg-slate-800 text-slate-400 border border-white/5">
+        <span id="connection-dot" class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Console View -->
+  <div id="panel-console" class="flex-1 flex flex-col min-h-0 relative">
+
+    <!-- Approval Banner -->
+    <div id="approval-banner" class="hidden absolute top-0 inset-x-0 z-20 px-3 pt-2 pb-1 bg-gradient-to-b from-black/90 via-black/80 to-transparent pointer-events-none">
+      <div class="bg-amber-950/40 border border-amber-600/30 rounded-xl p-3 backdrop-blur slide-up pointer-events-auto">
+        <div class="flex items-start gap-2">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 text-xs">!</div>
+          <div class="flex-1 min-w-0 space-y-1.5">
+            <p id="approval-title" class="text-[11px] font-semibold text-amber-300">approval required</p>
+            <p id="approval-thought" class="text-[10px] text-slate-400 italic leading-relaxed"></p>
+            <pre id="approval-args" class="hidden text-[9px] text-slate-500 bg-black/40 border border-white/5 rounded p-1.5 overflow-x-auto font-mono"></pre>
+            <div class="flex gap-1.5">
+              <input id="feedback-input" type="text" class="flex-1 bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 transition min-w-0" placeholder="answer or feedback...">
+              <button id="approve-btn" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-[10px] font-semibold transition whitespace-nowrap">send</button>
+              <button id="reject-btn" class="px-3 py-1.5 bg-rose-600/60 hover:bg-rose-500 rounded-lg text-[10px] font-semibold transition whitespace-nowrap">skip</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conversation -->
+    <div id="conversation" class="flex-1 scroll px-3 py-2">
+      <div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>
+    </div>
+
+    <!-- Generating Indicator -->
+    <div id="generating-indicator" class="hidden shrink-0 px-3 py-1 bg-indigo-500/5 border-t border-indigo-500/10 text-[10px] text-indigo-400 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+      <span id="gen-status">generating...</span>
+      <span id="gen-timing" class="text-slate-600 ml-auto font-mono"></span>
+    </div>
+
+    <!-- Todo Panel -->
+    <div id="todo-panel" class="hidden shrink-0 glass border-t border-indigo-500/10 px-3 py-1.5">
+      <div id="current-task-display" class="hidden text-[10px] text-slate-400 mb-1 pb-1 border-b border-white/5 truncate"></div>
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">todo</span>
+        <span id="todo-count" class="text-[9px] text-slate-500"></span>
+        <button onclick="toggle('todo-list-body')" class="ml-auto text-[9px] text-slate-600 hover:text-slate-400 transition">toggle</button>
+      </div>
+      <div id="todo-list-body">
+        <ul id="todo-items" class="space-y-0.5 max-h-32 overflow-y-auto"></ul>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="shrink-0 glass border-t border-white/5 px-3 py-2 space-y-2">
+      <div class="flex gap-2">
+        <textarea id="msg-input" rows="1" class="flex-1 bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50 resize-none" placeholder="Task goal or message for agent..."></textarea>
+        <div class="flex flex-col gap-1">
+          <button id="send-btn" class="px-3 py-1 bg-slate-600/30 hover:bg-slate-600/50 rounded-lg text-[10px] font-semibold text-slate-400 transition whitespace-nowrap" title="Send without agent (Enter)">send</button>
+          <button id="respond-btn" class="px-3 py-1 bg-indigo-600/70 hover:bg-indigo-500/80 rounded-lg font-semibold text-[10px] tracking-wide transition disabled:opacity-40 whitespace-nowrap" title="Trigger agent (Ctrl+Enter)">respond</button>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center flex-wrap">
+        <button id="stop-btn" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[10px] font-bold text-rose-400 transition disabled:opacity-30" disabled>stop</button>
+        <button id="pause-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition disabled:opacity-30" disabled>pause</button>
+        <button id="wake-btn" class="hidden px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[10px] font-bold text-amber-400 transition" title="End sleep mode">wake</button>
+        <button id="fresh-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[10px] font-bold text-slate-300 transition">fresh chat</button>
+        <select id="thinking-level" class="bg-black/60 border border-white/10 rounded text-[9px] text-slate-400 px-1.5 py-1 focus:outline-none focus:border-indigo-500/50" title="Reasoning effort">
+          <option value="">reasoning: default</option>
+          <option value="off">reasoning: off</option>
+          <option value="low">reasoning: low</option>
+          <option value="medium">reasoning: medium &#9733;</option>
+          <option value="high">reasoning: high</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory View -->
+  <div id="panel-memory" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <div class="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 shrink-0 self-start">
+      <button class="mem-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-memview="nodes">memory nodes</button>
+      <button class="mem-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-memview="sleep">sleep context</button>
+    </div>
+    <div id="memview-nodes" class="flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">nodes</h2>
+          </div>
+          <div class="flex gap-2">
+            <span id="mem-count" class="text-[9px] text-slate-600 self-center">0 nodes</span>
+            <button id="mem-refresh-btn" class="px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[9px] font-bold text-slate-400 transition">refresh</button>
+          </div>
+        </div>
+        <div class="flex-1 scroll p-3">
+          <pre id="mem-list" class="text-[11px] text-slate-400 mono leading-relaxed whitespace-pre-wrap"></pre>
+        </div>
+      </section>
+    </div>
+    <div id="memview-sleep" class="hidden flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">sleep context</h2>
+          </div>
+        </div>
+        <div class="flex-1 scroll p-3 flex flex-col gap-2">
+          <div class="flex gap-2 items-center flex-wrap">
+            <span class="text-[9px] text-slate-500">From (UTC):</span>
+            <input id="sleep-from" type="text" placeholder="YYYY-MM-DD HH:MM" class="bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 w-36">
+            <span class="text-[9px] text-slate-500">To (UTC):</span>
+            <input id="sleep-to" type="text" placeholder="YYYY-MM-DD HH:MM" class="bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 w-36">
+            <button id="sleep-gen-btn" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">generate context</button>
+          </div>
+          <pre id="sleep-output" class="bg-black/40 rounded-lg p-3 text-[10px] text-slate-500 mono leading-relaxed min-h-[60px] max-h-64 overflow-y-auto overflow-x-auto whitespace-pre-wrap">No context generated yet.</pre>
+          <div class="flex gap-2 items-center flex-wrap border-t border-white/5 pt-3 mt-1">
+            <span class="text-[9px] text-slate-500">Optional guidance:</span>
+            <input id="sleep-guidance" type="text" placeholder="e.g. remove obsolete memories, add info about the chair" class="flex-1 bg-black/60 border border-white/10 rounded px-2 py-1 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-amber-500/50">
+            <button id="sleep-flow-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[9px] font-bold text-amber-400 transition">run sleep flow</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Notes View -->
+  <div id="panel-notes" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <div class="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 shrink-0 self-start">
+      <button class="notes-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-notesview="notes">notes</button>
+      <button class="notes-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-notesview="reminders">reminders</button>
+      <button class="notes-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-notesview="stopwatch">stopwatch</button>
+    </div>
+    <div id="notesview-stopwatch" class="hidden flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">stopwatch</h2>
+          </div>
+          <span class="text-[9px] text-slate-600">(agent: stopwatch_start / stop / check / set)</span>
+        </div>
+        <div class="flex-1 flex flex-col items-center justify-center gap-6 p-6">
+          <div id="stopwatch-display" class="text-3xl font-mono font-bold text-slate-200 tabular-nums">00:00.0</div>
+          <div class="flex gap-3">
+            <button id="stopwatch-start" onclick="startStopwatch()" class="px-5 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 rounded-lg text-[11px] font-bold text-emerald-400 transition disabled:opacity-30">start</button>
+            <button id="stopwatch-stop" onclick="stopStopwatch()" disabled class="px-5 py-2 bg-rose-600/20 hover:bg-rose-600/40 border border-rose-600/30 rounded-lg text-[11px] font-bold text-rose-400 transition disabled:opacity-30">stop</button>
+            <input id="stopwatch-set-input" type="number" min="0" step="0.1" value="0" class="w-20 bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[11px] text-slate-200 font-mono text-center focus:outline-none focus:border-indigo-500/50">
+            <button id="stopwatch-set" onclick="setStopwatch(parseFloat($('stopwatch-set-input').value) || 0)" class="px-5 py-2 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[11px] font-bold text-slate-400 transition">set</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div id="notesview-notes" class="flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">user notes</h2>
+            <span class="text-[9px] text-slate-600">(agent: read_user_notes / write_user_notes)</span>
+          </div>
+          <span id="notes-status" class="text-[9px] text-slate-600"></span>
+        </div>
+        <textarea id="notes-editor" class="flex-1 bg-black/30 text-slate-200 p-4 font-mono text-[12px] leading-relaxed border-0 outline-none resize-none scroll" placeholder="Write your notes here..." oninput="debounceAutoSaveNotes()"></textarea>
+        <div class="px-4 py-1.5 border-t border-white/5 bg-black/20 text-[9px] text-slate-600 shrink-0">auto-saves on change</div>
+      </section>
+    </div>
+    <div id="notesview-reminders" class="hidden flex-1 flex flex-col min-h-0">
+      <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/30 shrink-0">
+          <div class="flex items-center gap-2 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            <h2 class="text-xs font-bold uppercase tracking-wider">reminders</h2>
+            <span id="reminder-count" class="text-[9px] text-slate-600"></span>
+          </div>
+          <button onclick="loadReminders()" class="px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[9px] font-bold text-slate-400 transition">refresh</button>
+        </div>
+        <div class="px-4 py-2 border-b border-white/5 bg-black/20 shrink-0 space-y-1.5">
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="reminder-title-input" type="text" placeholder="Title" class="flex-1 min-w-[120px] bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50">
+            <input id="reminder-msg-input" type="text" placeholder="Message (optional)" class="flex-1 min-w-[120px] bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50">
+            <input id="reminder-time-input" type="datetime-local" class="bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[10px] text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50">
+            <button onclick="createReminderUI()" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition whitespace-nowrap">create</button>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <input id="reminder-info-input" type="text" placeholder="Agent trigger info (what to tell the agent)" class="flex-1 min-w-[160px] bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50">
+            <select id="reminder-action-select" class="bg-black/60 border border-white/10 rounded px-2 py-1.5 text-[10px] text-slate-200 focus:outline-none focus:border-amber-500/50">
+              <option value="">no agent trigger</option>
+              <option value="continue">trigger agent (continue session)</option>
+              <option value="reset">trigger agent (reset session)</option>
+            </select>
+          </div>
+        </div>
+        <div id="reminder-list" class="flex-1 scroll p-3 space-y-1.5"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Models View -->
+  <div id="panel-models" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/30 shrink-0 text-slate-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <h2 class="text-xs font-bold uppercase tracking-wider">models</h2>
+      </div>
+      <div class="px-4 py-2 border-b border-white/5 bg-black/20 shrink-0 flex items-center gap-2">
+        <span class="text-[9px] text-slate-500">Active:</span>
+        <span id="model-active" class="text-[10px] font-mono text-indigo-400">None</span>
+        <button onclick="loadModelList()" class="ml-auto px-2 py-1 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded text-[8px] font-bold text-slate-400 transition">refresh</button>
+      </div>
+      <div id="model-list" class="flex-1 scroll p-3 space-y-1.5"></div>
+    </section>
+  </div>
+
+  <!-- Debug View -->
+  <div id="panel-debug" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <div class="flex items-center gap-1 bg-black/30 rounded-lg p-0.5 shrink-0 self-start overflow-x-auto">
+      <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" data-dbgview="api-log">api log</button>
+      <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="context">context</button>
+      <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="tools">tool flow</button>
+      <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="model">model info</button>
+      <button class="dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition" data-dbgview="events">raw events</button>
+    </div>
+    <div id="dbgview-api-log" class="flex-1 scroll glass rounded-xl p-3 text-[9px] font-mono"></div>
+    <div id="dbgview-context" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
+    <div id="dbgview-tools" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
+    <div id="dbgview-model" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
+    <div id="dbgview-events" class="hidden flex-1 scroll glass rounded-xl p-3"></div>
+  </div>
+
+  <!-- Settings View -->
+  <div id="panel-settings" class="hidden flex-1 flex flex-col min-h-0 p-3 gap-3">
+    <section class="glass rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex items-center gap-2 px-4 py-2 border-b border-white/5 bg-black/30 shrink-0 text-slate-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+        <h2 class="text-xs font-bold uppercase tracking-wider">settings</h2>
+      </div>
+      <div class="flex-1 scroll p-4 space-y-5">
+        <div>
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Approval Mode</h3>
+          <p class="text-[10px] text-slate-500 mb-2">Click the badge in the top navbar to cycle modes.</p>
+          <span class="text-[9px] text-slate-600">Current: <span id="approval-mode-display" class="font-mono text-indigo-400">WAIT_FOR_USER</span></span>
+        </div>
+        <div class="border-t border-white/5 pt-4">
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Self-Development Pipeline</h3>
+          <p class="text-[10px] text-slate-500 mb-2">The agent can safely modify its own codebase through a shadow sandbox.</p>
+          <div class="flex gap-2 flex-wrap">
+            <button id="sd-init-btn" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">init shadow</button>
+            <button id="sd-test-btn" class="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-600/30 rounded-lg text-[9px] font-bold text-amber-400 transition">run tests</button>
+            <button id="sd-deploy-btn" class="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 rounded-lg text-[9px] font-bold text-emerald-400 transition">deploy</button>
+            <button id="sd-status-btn" class="px-3 py-1.5 bg-slate-600/20 hover:bg-slate-600/40 border border-slate-600/30 rounded-lg text-[9px] font-bold text-slate-400 transition">status</button>
+          </div>
+          <pre id="sd-output" class="mt-2 bg-black/40 rounded-lg p-3 text-[10px] text-slate-500 mono leading-relaxed min-h-[40px] overflow-x-auto">No self-dev actions yet.</pre>
+        </div>
+        <div class="border-t border-white/5 pt-4">
+          <h3 class="text-[11px] font-bold text-slate-400 mb-2">Session</h3>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] text-slate-500">Current:</span>
+            <span id="settings-session" class="text-[10px] font-mono text-indigo-400"></span>
+            <button id="settings-new-session" class="px-3 py-1 bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-600/30 rounded-lg text-[9px] font-bold text-indigo-400 transition">new session</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- System Resources (bottom-right) -->
+<div id="sys-resources" class="fixed bottom-2 right-2 z-30 bg-black/70 border border-white/5 rounded-lg px-2.5 py-1 text-[8px] font-mono text-slate-500 flex flex-row items-center gap-2 pointer-events-none" style="display:none">
+  <span id="sys-cpu"></span>
+  <span id="sys-sep1" class="text-slate-700" style="display:none">|</span>
+  <span id="sys-mem"></span>
+  <span id="sys-sep2" class="text-slate-700" style="display:none">|</span>
+  <span id="sys-gpu"></span>
+  <span id="sys-sep3" class="text-slate-700" style="display:none">|</span>
+  <span id="sys-batt"></span>
+</div>
+
+<!-- Scripts -->
+<script src="/js/utils.js"></script>
+<script src="/js/chat.js"></script>
+<script src="/js/session.js"></script>
+<script src="/js/websocket.js"></script>
+<script src="/js/memory.js"></script>
+<script src="/js/models.js"></script>
+<script src="/js/debug.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/system.js"></script>
+<script src="/js/reminders.js"></script>
+<script src="/js/stopwatch.js"></script>
+<script src="/js/app.js"></script>
+
+<script>
+"use strict";
+
+/* ── Keyboard shortcuts ───────────────────────────────────────── */
+
+document.addEventListener('keydown', e => {
+  const banner = $('approval-banner');
+  if (banner && !banner.classList.contains('hidden')) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitApproval(true); }
+    if (e.key === 'Escape') { submitApproval(false); }
+    return;
+  }
+  if (e.key === 'Enter' && e.ctrlKey) {
+    e.preventDefault(); $('respond-btn').click(); return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement === $('msg-input')) {
+    e.preventDefault(); $('send-btn').click(); return;
+  }
+});
+
+/* ── Input auto-resize ────────────────────────────────────────── */
+
+function autoResizeTextarea() {
+  const t = $('msg-input');
+  if (!t) return;
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 200) + 'px';
+}
+
+$('msg-input').addEventListener('input', autoResizeTextarea);
+
+/* ── Send / Respond ───────────────────────────────────────────── */
+
+$('send-btn').onclick = async () => {
+  const text = $('msg-input').value.trim();
+  if (!text) return;
+  $('msg-input').value = '';
+  autoResizeTextarea();
+  addMessage(`you: ${text}`, 'indigo-400');
+  try {
+    await fetch('/api/chat/send', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message: text})
+    });
+  } catch(_) {}
+};
+
+$('respond-btn').onclick = async () => {
+  const text = $('msg-input').value.trim();
+  $('msg-input').value = '';
+  autoResizeTextarea();
+
+  if (sleepMode) {
+    showGenerating('sleep flow...');
+    if (text) addMessage(`sleep: ${text}`, 'amber-400');
+    fetch('/api/chat/sleep-start', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message: text})
+    }).catch(err => addMessage(`sleep error: ${err.message}`, 'rose-400'));
+    return;
+  }
+
+  const msgToSend = text || '__CONTINUE__';
+  if (text) addMessage(`you: ${text}`, 'indigo-400');
+  try {
+    const r = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message: msgToSend})
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      addMessage(`failed: ${err.detail || 'error'}`, 'rose-400');
+    }
+  } catch(err) {
+    addMessage(`network error: ${err.message}`, 'rose-400');
+  }
+};
+
+/* ── Control buttons ──────────────────────────────────────────── */
+
+$('stop-btn').onclick = async () => {
+  hideApproval();
+  hideGenerating();
+  if (sleepMode) {
+    const wakeBtn = $('wake-btn');
+    const msgInput = $('msg-input');
+    if (wakeBtn) wakeBtn.classList.add('hidden');
+    if (msgInput) msgInput.placeholder = 'Task goal or message for agent...';
+    sleepMode = false;
+  }
+  try {
+    await fetch('/api/chat/stop', { method:'POST', headers:{'Content-Type':'application/json'} });
+  } catch(_) {}
+  addMessage('stop requested', 'rose-400');
+};
+
+$('pause-btn').onclick = async () => {
+  if ($('pause-btn').textContent === 'pause') {
+    try {
+      await fetch('/api/chat/pause', { method:'POST', headers:{'Content-Type':'application/json'} });
+    } catch(_) {}
+    $('pause-btn').textContent = 'resume';
+    addMessage('pause requested (after current output)', 'amber-400');
+  } else {
+    try {
+      await fetch('/api/chat/resume', { method:'POST', headers:{'Content-Type':'application/json'} });
+    } catch(_) {}
+    $('pause-btn').textContent = 'pause';
+    addMessage('resumed', 'emerald-400');
+  }
+};
+
+$('wake-btn').onclick = () => {
+  fetch('/api/chat/sleep-wake', { method:'POST', headers:{'Content-Type':'application/json'} })
+    .catch(err => addMessage(`wake error: ${err.message}`, 'rose-400'));
+  $('wake-btn').classList.add('hidden');
+  $('msg-input').placeholder = 'Task goal or message for agent...';
+  sleepMode = false;
+  addMessage('sleep mode ended', 'slate-400');
+};
+
+$('fresh-btn').onclick = async () => {
+  try {
+    await fetch('/api/session', { method:'DELETE' });
+    chatResponseId = null;
+    chatResponseBuffer = '';
+    thinkingResponseId = null;
+    genStartTime = 0;
+    msgCounter = 0;
+    skipNextTaskMsg = false;
+    if (socket) { socket.onclose = null; socket.close(); socket = null; }
+    $('conversation').innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>`;
+    $('todo-panel').classList.add('hidden');
+    $('todo-items').innerHTML = '';
+    currentGoal = '';
+    isRunning = false;
+    sleepMode = false;
+    $('msg-input').placeholder = 'Task goal or message for agent...';
+    hideGenerating();
+    hideApproval();
+    $('stop-btn').disabled = true;
+    $('pause-btn').disabled = true;
+    $('pause-btn').textContent = 'pause';
+    $('wake-btn').classList.add('hidden');
+    historyLoaded = false;
+    await initSession();
+    connectWS();
+    showToast('new session started');
+  } catch(_) {}
+};
+
+$('approve-btn').onclick = () => submitApproval(true);
+$('reject-btn').onclick = () => submitApproval(false);
+$('notes-editor').addEventListener('blur', () => { if ($('notes-editor').value.trim()) saveNotes(true); });
+$('mem-refresh-btn').onclick = loadMemoryGraph;
+
+/* ── Self-dev ─────────────────────────────────────────────────── */
+
+$('sd-init-btn').onclick = sdInit;
+$('sd-test-btn').onclick = sdTest;
+$('sd-deploy-btn').onclick = sdDeploy;
+$('sd-status-btn').onclick = sdStatus;
+$('settings-new-session').onclick = async () => {
+  try {
+    await fetch('/api/session', { method:'DELETE' });
+    chatResponseId = null;
+    chatResponseBuffer = '';
+    thinkingResponseId = null;
+    genStartTime = 0;
+    msgCounter = 0;
+    skipNextTaskMsg = false;
+    if (socket) { socket.onclose = null; socket.close(); socket = null; }
+    $('conversation').innerHTML = `<div id="welcome-msg" class="text-slate-600 italic text-[11px] text-center py-8">ready. what would you like to do?</div>`;
+    $('todo-panel').classList.add('hidden');
+    $('todo-items').innerHTML = '';
+    currentGoal = '';
+    isRunning = false;
+    sleepMode = false;
+    hideGenerating();
+    hideApproval();
+    $('stop-btn').disabled = true;
+    $('pause-btn').disabled = true;
+    $('pause-btn').textContent = 'pause';
+    $('wake-btn').classList.add('hidden');
+    historyLoaded = false;
+    await initSession();
+    connectWS();
+    showToast('new session started');
+  } catch(_) {}
+};
+
+/* ── Nav tabs ─────────────────────────────────────────────────── */
+
+document.querySelectorAll('.nav-tab').forEach(t =>
+  t.addEventListener('click', () => switchView(t.dataset.view))
+);
+
+/* ── Debug sub-tabs ───────────────────────────────────────────── */
+
+function switchDebugView(view) {
+  document.querySelectorAll('[id^="dbgview-"]').forEach(p => p.classList.add('hidden'));
+  const panel = $(`dbgview-${view}`);
+  if (panel) panel.classList.remove('hidden');
+  document.querySelectorAll('.dbg-subtab').forEach(t => {
+    const isActive = t.dataset.dbgview === view;
+    t.className = isActive
+      ? 'dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+      : 'dbg-subtab px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-md text-slate-500 hover:text-slate-300 transition';
+  });
+  if (view === 'api-log') renderApiLog();
+  if (view === 'context') renderContextInspector();
+
+  if (view === 'tools') renderToolFlow();
+  if (view === 'model') renderModelInfo();
+  if (view === 'events') renderRawEvents();
+}
+document.querySelectorAll('.dbg-subtab').forEach(t =>
+  t.addEventListener('click', () => switchDebugView(t.dataset.dbgview))
+);
+
+/* ── Approval cycling ─────────────────────────────────────────── */
+
+setupApprovalCycle();
+
+/* ── Sleep controls ───────────────────────────────────────────── */
+
+setupSleepControls();
+</script>
+</body>
+</html>

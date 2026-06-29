@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+
+# Runtime state files (auto-generated)
+backend/app/stopwatch.json
+backend/app/memory.json
+backend/app/reminders.json
+backend/app/todo.json
+backend/app/diagnostics.json
+backend/app/meta_prompt_history.log
+backend/app/user_notes.md
+backend/app/memory_rules.md
+backend/data/
+
+# Test artifacts
+.pytest_cache/
+backend/test.txt
+
+# Self-dev sandbox
+sandbox/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
